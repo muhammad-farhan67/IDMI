@@ -3,5 +3,4 @@ streamlit
 pandas
 supabase
 plotly
-google-generativeai
 requests
