@@ -1,10 +1,11 @@
 """
-pages/5_ℹ️_About.py — Project overview and data source transparency.
+pages/5_ℹ️_About.py — Project overview.
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import streamlit as st
+import pandas as pd
 from utils.db import load_data
 from utils.theme import inject_css
 
@@ -19,51 +20,43 @@ with col1:
     st.markdown("""
 ## What is IDMI?
 
-**Indus Digital Market Intelligence** is a free, open-source market intelligence 
-platform built for Pakistan's growing digital economy. It tracks real-time 
-exchange rates, remote job market trends, and skill demand — and synthesises 
-everything into actionable briefings using AI.
-
-It is built and maintained entirely on free-tier services.
+**Indus Digital Market Intelligence** is a real-time intelligence platform
+built for Pakistan's digital economy. It tracks exchange rates, remote job
+market trends, and skill demand — synthesising everything into actionable
+briefings powered by AI.
 
 ## Who is it for?
 
-- **Freelancers** on Upwork, Fiverr, and Toptal who need to know the best time 
-  to convert USD to PKR.
-- **Remote workers** wanting to track which skills are most in demand globally.
-- **Digital entrepreneurs** monitoring Pakistan's tech economy.
-- **Students** entering the freelance market who want data to guide their learning.
+**Freelancers** on Upwork, Fiverr, and Toptal who need to know the best time
+to convert USD to PKR. **Remote workers** wanting to track which skills
+are most in demand globally. **Digital entrepreneurs** monitoring Pakistan's
+tech economy. **Students** entering the freelance market who want data to
+guide their learning path.
 
-## Data Sources
+## How it works
 
-All data is collected automatically every hour via a GitHub Actions pipeline.
+A data pipeline runs automatically every 12 hours, pulling live exchange
+rates, job market data, and news headlines from multiple sources. The data
+is stored in a cloud database and the Streamlit app reads from it in
+near-real-time, with a 10-minute cache.
 
-| Source | What it provides | Cost |
-|---|---|---|
-| open.er-api.com | USD, EUR, GBP, SAR, AED rates | Free, no API key |
-| CoinGecko API | USDT and BTC prices | Free, no API key |
-| RemoteOK API | Live remote job listings + skill tags | Free, no API key |
-| Dawn.com RSS | Pakistan tech news | Free, public RSS |
-| The News RSS | Pakistan business news | Free, public RSS |
-| ProPakistani RSS | Pakistan tech news | Free, public RSS |
-| Groq API (Llama 3.3) | AI market briefings | Free tier |
-| Supabase | Database storage | Free tier (500MB) |
-| GitHub Actions | Hourly data pipeline | Free tier (2000 min/mo) |
-| Streamlit Community Cloud | App hosting | Free |
-
-**Total monthly cost: ₨ 0**
+An AI engine called **STRATOS** analyses the freshest snapshot and produces
+a concise 3-sentence briefing tailored to Pakistani freelancers — covering
+currency outlook, job market trends, and one actionable recommendation.
 
 ## Tech Stack
 
-- **Backend pipeline**: Python · `requests` · `feedparser` · `groq`
+- **Pipeline**: Python, running on GitHub Actions
 - **Database**: Supabase (PostgreSQL)
 - **Frontend**: Streamlit multi-page app
 - **Charts**: Plotly Express
-- **CI/CD**: GitHub Actions (hourly cron)
+- **AI Briefings**: Groq (Llama 3.3 70B)
 
-## Open Source
+## Disclaimer
 
-The full source code is available on GitHub. Contributions welcome.
+IDMI is for informational purposes only. Nothing on this platform constitutes
+financial advice. Exchange rates and market data are provided as-is and may
+be delayed. Always verify rates before making financial decisions.
     """)
 
 with col2:
@@ -72,17 +65,15 @@ with col2:
     df = load_data()
     if not df.empty:
         latest_ts = df.iloc[-1]["timestamp"]
-        row_count = len(df)
-        oldest_ts = df.iloc[0]["timestamp"]
+        row_count  = len(df)
+        oldest_ts  = df.iloc[0]["timestamp"]
 
         st.metric("Total snapshots", f"{row_count:,}")
         st.metric("Latest snapshot", str(latest_ts)[:16])
-        st.metric("Tracking since", str(oldest_ts)[:10])
+        st.metric("Tracking since",  str(oldest_ts)[:10])
 
-        import pandas as pd
-        from datetime import datetime, timezone
-        now = pd.Timestamp.now(tz="UTC")
-        age = now - pd.Timestamp(latest_ts, tz="UTC")
+        now        = pd.Timestamp.now(tz="UTC")
+        age        = now - pd.Timestamp(latest_ts, tz="UTC")
         minutes_old = int(age.total_seconds() / 60)
 
         if minutes_old < 75:
@@ -90,15 +81,29 @@ with col2:
         elif minutes_old < 180:
             st.warning(f"⚠ Last run was {minutes_old}m ago — pipeline may be delayed")
         else:
-            st.error(f"✗ Last run was {minutes_old}m ago — check GitHub Actions")
+            st.error(f"✗ Last run was {minutes_old}m ago — check GitHub Actions logs")
+
+        st.divider()
+
+        # Sparkline of recent snapshots
+        if "usd_pkr_rate" in df.columns:
+            import plotly.express as px
+            fig = px.line(
+                df.tail(20), x="timestamp", y="usd_pkr_rate",
+                line_shape="spline",
+                color_discrete_sequence=["#1a7a3c"],
+                labels={"usd_pkr_rate": "USD/PKR", "timestamp": ""},
+            )
+            fig.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                margin=dict(l=0, r=0, t=10, b=0),
+                xaxis=dict(showgrid=False, showticklabels=False),
+                yaxis=dict(gridcolor="rgba(0,0,0,0.05)"),
+                height=140,
+            )
+            st.caption("USD/PKR — last 20 snapshots")
+            st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No data in database yet.")
-
-    st.divider()
-    st.subheader("Disclaimer")
-    st.caption(
-        "IDMI is for informational purposes only. Nothing on this platform "
-        "constitutes financial advice. Exchange rates and market data are "
-        "provided as-is and may be delayed. Always verify rates before making "
-        "financial decisions."
-    )
+        st.info("Trigger the GitHub Action manually to seed your first snapshot.")
