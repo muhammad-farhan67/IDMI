@@ -1,5 +1,5 @@
 """
-pages/5_ℹ️_About.py — Project overview.
+pages/5_ℹ️_About.py — Project overview and pipeline status.
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -28,7 +28,7 @@ briefings powered by AI.
 ## Who is it for?
 
 **Freelancers** on Upwork, Fiverr, and Toptal who need to know the best time
-to convert USD to PKR. **Remote workers** wanting to track which skills
+to convert earnings to PKR. **Remote workers** wanting to track which skills
 are most in demand globally. **Digital entrepreneurs** monitoring Pakistan's
 tech economy. **Students** entering the freelance market who want data to
 guide their learning path.
@@ -46,7 +46,7 @@ currency outlook, job market trends, and one actionable recommendation.
 
 ## Tech Stack
 
-- **Pipeline**: Python, running on GitHub Actions
+- **Pipeline**: Python, running on GitHub Actions (every 12 hours)
 - **Database**: Supabase (PostgreSQL)
 - **Frontend**: Streamlit multi-page app
 - **Charts**: Plotly Express
@@ -72,38 +72,51 @@ with col2:
         st.metric("Latest snapshot", str(latest_ts)[:16])
         st.metric("Tracking since",  str(oldest_ts)[:10])
 
-        now        = pd.Timestamp.now(tz="UTC")
-        age        = now - pd.Timestamp(latest_ts, tz="UTC")
-        minutes_old = int(age.total_seconds() / 60)
+        try:
+            now = pd.Timestamp.now(tz="UTC")
+            # Ensure latest_ts is timezone-aware before subtraction
+            ts = pd.Timestamp(latest_ts)
+            if ts.tzinfo is None:
+                ts = ts.tz_localize("UTC")
+            else:
+                ts = ts.tz_convert("UTC")
 
-        if minutes_old < 75:
-            st.success(f"✓ Pipeline healthy — last run {minutes_old}m ago")
-        elif minutes_old < 180:
-            st.warning(f"⚠ Last run was {minutes_old}m ago — pipeline may be delayed")
-        else:
-            st.error(f"✗ Last run was {minutes_old}m ago — check GitHub Actions logs")
+            age         = now - ts
+            minutes_old = int(age.total_seconds() / 60)
+
+            if minutes_old < 75:
+                st.success(f"✓ Pipeline healthy — last run {minutes_old}m ago")
+            elif minutes_old < 180:
+                st.warning(f"⚠ Last run was {minutes_old}m ago — pipeline may be delayed")
+            else:
+                hours_old = minutes_old // 60
+                st.error(f"✗ Last run was {hours_old}h ago — check GitHub Actions logs")
+        except Exception as e:
+            st.info(f"Latest snapshot: {str(latest_ts)[:16]} UTC")
 
         st.divider()
 
-        # Sparkline of recent snapshots
+        # Sparkline of recent USD/PKR
         if "usd_pkr_rate" in df.columns:
             import plotly.express as px
-            fig = px.line(
-                df.tail(20), x="timestamp", y="usd_pkr_rate",
-                line_shape="spline",
-                color_discrete_sequence=["#1a7a3c"],
-                labels={"usd_pkr_rate": "USD/PKR", "timestamp": ""},
-            )
-            fig.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=0, r=0, t=10, b=0),
-                xaxis=dict(showgrid=False, showticklabels=False),
-                yaxis=dict(gridcolor="rgba(0,0,0,0.05)"),
-                height=140,
-            )
-            st.caption("USD/PKR — last 20 snapshots")
-            st.plotly_chart(fig, use_container_width=True)
+            spark_df = df.tail(20).dropna(subset=["usd_pkr_rate"])
+            if not spark_df.empty:
+                fig = px.line(
+                    spark_df, x="timestamp", y="usd_pkr_rate",
+                    line_shape="spline",
+                    color_discrete_sequence=["#1a7a3c"],
+                    labels={"usd_pkr_rate": "USD/PKR", "timestamp": ""},
+                )
+                fig.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=0, r=0, t=10, b=0),
+                    xaxis=dict(showgrid=False, showticklabels=False),
+                    yaxis=dict(gridcolor="rgba(128,128,128,0.15)", tickfont=dict(size=10)),
+                    height=150,
+                )
+                st.caption("USD/PKR — last 20 snapshots")
+                st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No data in database yet.")
         st.info("Trigger the GitHub Action manually to seed your first snapshot.")
