@@ -21,12 +21,27 @@ supabase = init_connection()
 # --- DATA FETCHING ---
 @st.cache_data(ttl=600) # Cache data for 10 minutes to save database hits
 def load_data():
-    response = supabase.table("market_intel").select("*").execute()
-    df = pd.DataFrame(response.data)
-    if not df.empty:
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+    try:
+        response = supabase.table("market_intel").select("*").execute()
+        
+        # 1. Check if we actually got data
+        if not response.data:
+            return pd.DataFrame()
+            
+        # 2. Convert to DataFrame
+        df = pd.DataFrame(response.data)
+        
+        # 3. Clean up the timestamp
+        # Using errors='coerce' prevents the app from crashing if a row is messy
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        
+        # 4. Final sorting
         df = df.sort_values('timestamp')
-    return df
+        return df
+    except Exception as e:
+        # This will show you the ACTUAL error on the Streamlit screen
+        st.error(f"Error fetching from Supabase: {e}")
+        return pd.DataFrame()
 
 df = load_data()
 
