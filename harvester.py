@@ -25,7 +25,7 @@ def run_ingestion_pipeline():
     tech_jobs_volume = 1500 + (datetime.now().day * 15) 
 
     # --- 3. MARKET SENTIMENT NLP (Veracity) ---
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.0-flash')
     prompt = f"The current USD to PKR rate is {pkr_rate}. Based on this, write a 2-sentence market intelligence summary for Pakistani freelancers. Will hardware be expensive? Should they hold dollars?"
     ai_insight = model.generate_content(prompt).text
 
