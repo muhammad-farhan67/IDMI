@@ -1,77 +1,99 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(__file__))
+
 import streamlit as st
-import pandas as pd
-from supabase import create_client
-import os
-import plotly.express as px
+from utils.db import load_data, get_latest, delta_str
+from utils.theme import inject_css
 
-# --- PAGE CONFIGURATION ---
-st.set_page_config(page_title="IDMI | Market Intelligence", layout="wide")
-st.title("📊 Indus Digital Market Intelligence (IDMI)")
-st.markdown("A High-Velocity Predictive Analytics Engine for Pakistan's Digital Economy.")
+st.set_page_config(
+    page_title="IDMI | Market Intelligence",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+inject_css()
 
-# --- DATABASE CONNECTION ---
-@st.cache_resource
-def init_connection():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
-
-supabase = init_connection()
-
-# --- DATA FETCHING ---
-@st.cache_data(ttl=600) # Cache data for 10 minutes to save database hits
-def load_data():
-    try:
-        response = supabase.table("market_intel").select("*").execute()
-        
-        # 1. Check if we actually got data
-        if not response.data:
-            return pd.DataFrame()
-            
-        # 2. Convert to DataFrame
-        df = pd.DataFrame(response.data)
-        
-        # 3. Clean up the timestamp
-        # Using errors='coerce' prevents the app from crashing if a row is messy
-        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
-        
-        # 4. Final sorting
-        df = df.sort_values('timestamp')
-        return df
-    except Exception as e:
-        # This will show you the ACTUAL error on the Streamlit screen
-        st.error(f"Error fetching from Supabase: {e}")
-        return pd.DataFrame()
+# ── Header ────────────────────────────────────────────────────────────────
+st.markdown(
+    '<span class="live-dot"></span> **Live** — data refreshed every 10 minutes',
+    unsafe_allow_html=True,
+)
+st.title("Indus Digital Market Intelligence")
+st.caption("A real-time intelligence engine for Pakistan's digital economy — "
+           "exchange rates, freelance job markets, and AI-powered briefings.")
+st.divider()
 
 df = load_data()
 
-# --- DASHBOARD UI ---
 if df.empty:
-    st.warning("Database is currently empty. Waiting for the Harvester pipeline to run...")
-else:
-    # Get the latest row of data
-    latest = df.iloc[-1]
-    
-    # 1. Key Metrics Row
-    st.header("⚡ Live Economic Pulse")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Current USD/PKR Rate", f"Rs. {latest['usd_pkr_rate']}")
-    col2.metric("Freelance Purchasing Power Index", latest['purchasing_power_index'])
-    col3.metric("Global Tech Job Volume", latest['job_volume'])
+    st.warning("Database is empty. The harvester pipeline hasn't run yet. "
+               "Trigger your GitHub Action manually to seed data.")
+    st.stop()
 
-    st.divider()
+latest = get_latest(df)
 
-    # 2. AI Sentiment Section
-    st.header("🧠 STRATOS: AI Market Sentiment")
-    st.info(latest['ai_sentiment'])
+# ── 5 top metrics ─────────────────────────────────────────────────────────
+st.subheader("Live Economic Pulse")
+c1, c2, c3, c4, c5 = st.columns(5)
 
-    st.divider()
+c1.metric(
+    "USD / PKR",
+    f"₨ {latest.get('usd_pkr_rate', '—')}",
+    delta_str(df, "usd_pkr_rate"),
+)
+c2.metric(
+    "EUR / PKR",
+    f"₨ {latest.get('eur_pkr_rate', '—')}",
+    delta_str(df, "eur_pkr_rate"),
+)
+c3.metric(
+    "GBP / PKR",
+    f"₨ {latest.get('gbp_pkr_rate', '—')}",
+    delta_str(df, "gbp_pkr_rate"),
+)
+c4.metric(
+    "USDT / PKR",
+    f"₨ {latest.get('usdt_pkr_rate', '—')}",
+    delta_str(df, "usdt_pkr_rate"),
+)
+c5.metric(
+    "Remote Jobs Live",
+    f"{latest.get('job_volume', '—'):,}" if latest.get("job_volume") else "—",
+    delta_str(df, "job_volume"),
+)
 
-    # 3. Big Data Visualization
-    st.header("📈 Historical Trend Analysis")
-    fig = px.line(df, x='timestamp', y='usd_pkr_rate', 
-                  title="USD to PKR Volatility Over Time",
-                  markers=True, line_shape="spline")
-    st.plotly_chart(fig, use_container_width=True)
-    
-    st.caption("Data is ingested automatically via serverless GitHub Action pipelines.")
+st.divider()
+
+# ── STRATOS briefing ──────────────────────────────────────────────────────
+st.subheader("STRATOS — AI Market Briefing")
+st.info(f"🧠  {latest.get('ai_sentiment', 'Generating…')}")
+
+st.divider()
+
+# ── USD/PKR sparkline ─────────────────────────────────────────────────────
+st.subheader("USD / PKR — Recent Trend")
+
+import plotly.express as px
+fig = px.line(
+    df.tail(30),
+    x="timestamp",
+    y="usd_pkr_rate",
+    markers=True,
+    line_shape="spline",
+    color_discrete_sequence=["#1a7a3c"],
+)
+fig.update_layout(
+    margin=dict(l=0, r=0, t=10, b=0),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    xaxis=dict(title="", showgrid=False),
+    yaxis=dict(title="PKR per USD", gridcolor="#f0f0f0"),
+    hovermode="x unified",
+)
+st.plotly_chart(fig, use_container_width=True)
+
+st.caption(
+    f"Last snapshot: {latest.get('timestamp', '')} UTC  ·  "
+    "Ingested via GitHub Actions  ·  Stored in Supabase  ·  "
+    "Use the sidebar to explore Freelancer Tools, Market Intelligence, and News."
+)
