@@ -1,6 +1,6 @@
 """
-IDMI Harvester v2.1 — Indus Digital Market Intelligence
-All data sources are FREE with no paid API keys required.
+IDMI Harvester v2.2 — Indus Digital Market Intelligence
+
 """
 
 import os
@@ -29,7 +29,7 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 def safe_get(url, retries=3, timeout=15):
     for attempt in range(retries):
         try:
-            resp = requests.get(url, timeout=timeout, headers={"User-Agent": "IDMI/2.1"})
+            resp = requests.get(url, timeout=timeout, headers={"User-Agent": "IDMI/2.2"})
             resp.raise_for_status()
             return resp.json()
         except Exception as e:
@@ -57,12 +57,14 @@ def fetch_exchange_rates():
         "gbp_pkr":  round(rates.get("PKR", 0) / rates.get("GBP", 1), 2),
         "sar_pkr":  round(rates.get("PKR", 0) / rates.get("SAR", 1), 2),
         "aed_pkr":  round(rates.get("PKR", 0) / rates.get("AED", 1), 2),
+        "cad_pkr":  round(rates.get("PKR", 0) / rates.get("CAD", 1), 2),
+        "aud_pkr":  round(rates.get("PKR", 0) / rates.get("AUD", 1), 2),
         "purchasing_power_index": round(100000 / pkr, 2) if pkr else 0,
     }
 
 
 # ---------------------------------------------------------------------------
-# 4. CRYPTO / STABLECOIN
+# 4. CRYPTO
 # ---------------------------------------------------------------------------
 def fetch_crypto_rates():
     print("  Fetching crypto rates...")
@@ -81,7 +83,7 @@ def fetch_crypto_rates():
 
 
 # ---------------------------------------------------------------------------
-# 5. REAL REMOTE JOBS
+# 5. REMOTE JOBS
 # ---------------------------------------------------------------------------
 TRACKED_SKILLS = [
     "python", "javascript", "react", "node", "php", "wordpress",
@@ -98,7 +100,6 @@ def fetch_jobs_and_skills():
         return {"job_volume": 0, "top_skills": json.dumps([])}
 
     jobs = [j for j in data if isinstance(j, dict) and "tags" in j]
-
     tag_counter = Counter()
     for job in jobs:
         for tag in job.get("tags", []):
@@ -108,64 +109,90 @@ def fetch_jobs_and_skills():
 
     top_skills = [{"skill": skill, "count": count}
                   for skill, count in tag_counter.most_common(10)]
-
-    return {
-        "job_volume":  len(jobs),
-        "top_skills":  json.dumps(top_skills),
-    }
+    return {"job_volume": len(jobs), "top_skills": json.dumps(top_skills)}
 
 
 # ---------------------------------------------------------------------------
-# 6. NEWS HEADLINES — Diverse RSS feeds (Pakistan + global tech)
+# 6. NEWS — Tech-specific RSS feeds that are reliable and relevant
 # ---------------------------------------------------------------------------
+#
+# Feed selection rationale:
+#   Pakistani (pk=True):  ProPakistani and Profit Pakistan are the two most
+#     reliable PK tech RSS feeds. Dawn & The News tech RSS have been flaky.
+#   Global tech (pk=False): Feeds directly relevant to freelancers —
+#     Hacker News (dev community), TechCrunch (industry news),
+#     The Verge Tech, Ars Technica (deep tech), Wired (trends).
+#   These are all stable, high-uptime RSS endpoints with no auth required.
+#
 RSS_FEEDS = [
-    # Pakistani sources
-    ("Dawn Tech",        "https://www.dawn.com/feeds/technology"),
-    ("The News Tech",    "https://www.thenews.com.pk/rss/2/12"),
-    ("ProPakistani",     "https://propakistani.pk/feed/"),
-    ("Profit Pakistan",  "https://profit.pakistantoday.com.pk/feed/"),
-    ("ARY News Tech",    "https://arynews.tv/feed/"),
-    # Global tech relevant to freelancers
-    ("TechCrunch",       "https://techcrunch.com/feed/"),
-    ("Hacker News",      "https://hnrss.org/frontpage"),
-    ("Dev.to",           "https://dev.to/feed"),
+    # Pakistani sources — reliable endpoints
+    {"name": "ProPakistani",    "url": "https://propakistani.pk/feed/",                   "pk": True,  "max": 3},
+    {"name": "Profit Pakistan", "url": "https://profit.pakistantoday.com.pk/feed/",        "pk": True,  "max": 3},
+    # Global tech — freelancer-relevant
+    {"name": "Hacker News",     "url": "https://hnrss.org/frontpage",                      "pk": False, "max": 2},
+    {"name": "TechCrunch",      "url": "https://techcrunch.com/feed/",                     "pk": False, "max": 2},
+    {"name": "The Verge",       "url": "https://www.theverge.com/rss/index.xml",           "pk": False, "max": 2},
+    {"name": "Ars Technica",    "url": "https://feeds.arstechnica.com/arstechnica/technology-lab", "pk": False, "max": 1},
 ]
 
-def fetch_news_headlines(max_per_feed=2):
-    """
-    Pulls headlines from 8 RSS feeds — 5 Pakistani + 3 global tech.
-    max_per_feed=2 keeps the mix balanced (cap 15 total).
-    """
+# Keywords to filter out non-tech articles from mixed feeds
+TECH_KEYWORDS = [
+    "software", "app", "tech", "ai", "startup", "digital", "code", "python",
+    "developer", "freelance", "remote", "crypto", "bitcoin", "cyber", "cloud",
+    "data", "android", "ios", "internet", "online", "platform", "api", "open source",
+    "dollar", "pkr", "rupee", "economy", "market", "investment", "fiverr", "upwork",
+    "github", "tool", "launch", "product", "funding", "acquisition",
+]
+
+def is_tech_relevant(title: str) -> bool:
+    """Return True if the headline looks tech/business relevant."""
+    title_lower = title.lower()
+    return any(kw in title_lower for kw in TECH_KEYWORDS)
+
+def fetch_news_headlines():
     print("  Fetching news headlines via RSS...")
     headlines = []
-    for source_name, url in RSS_FEEDS:
+    for feed_cfg in RSS_FEEDS:
+        source = feed_cfg["name"]
+        url    = feed_cfg["url"]
+        is_pk  = feed_cfg["pk"]
+        max_n  = feed_cfg["max"]
         try:
             feed = feedparser.parse(url)
             if not feed.entries:
-                print(f"  [WARN] No entries from {source_name}")
+                print(f"  [WARN] No entries from {source}")
                 continue
-            for entry in feed.entries[:max_per_feed]:
+            count = 0
+            for entry in feed.entries:
+                if count >= max_n:
+                    break
                 title = entry.get("title", "").strip()
                 link  = entry.get("link", "")
-                if title and link:
-                    headlines.append({
-                        "title":  title,
-                        "source": source_name,
-                        "link":   link,
-                    })
+                if not title or not link:
+                    continue
+                # For mixed PK feeds filter for tech relevance;
+                # global tech feeds are already curated
+                if is_pk and not is_tech_relevant(title):
+                    continue
+                headlines.append({
+                    "title":  title,
+                    "source": source,
+                    "link":   link,
+                    "pk":     is_pk,
+                })
+                count += 1
         except Exception as e:
-            print(f"  [WARN] RSS feed failed ({source_name}): {e}")
+            print(f"  [WARN] RSS feed failed ({source}): {e}")
 
-    print(f"  Collected {len(headlines)} headlines from {len(RSS_FEEDS)} feeds.")
+    print(f"  Collected {len(headlines)} headlines.")
     return json.dumps(headlines[:15])
 
 
 # ---------------------------------------------------------------------------
-# 7. AI MARKET BRIEFING
+# 7. AI BRIEFING
 # ---------------------------------------------------------------------------
 def generate_ai_insight(rates, jobs, top_skills_raw):
     print("  Generating AI market insight via Groq...")
-
     top_skills_list = ", ".join(
         [s["skill"] for s in json.loads(top_skills_raw)][:5]
     ) if top_skills_raw else "unavailable"
@@ -211,7 +238,7 @@ Be direct, data-driven, and specific to Pakistan's freelance economy.
 def run_ingestion_pipeline():
     now = datetime.now(timezone.utc)
     print(f"\n{'='*55}")
-    print(f"  IDMI Ingestion Pipeline v2.1  |  {now.strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"  IDMI Ingestion Pipeline v2.2  |  {now.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"{'='*55}")
 
     rates = fetch_exchange_rates()
@@ -222,9 +249,7 @@ def run_ingestion_pipeline():
     crypto = fetch_crypto_rates()
     jobs   = fetch_jobs_and_skills()
     news   = fetch_news_headlines()
-
     rates.update(crypto)
-
     ai_insight = generate_ai_insight(rates, jobs, jobs["top_skills"])
 
     payload = {
