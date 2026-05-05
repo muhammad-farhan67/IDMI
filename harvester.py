@@ -1,14 +1,6 @@
 """
-IDMI Harvester v2 — Indus Digital Market Intelligence
+IDMI Harvester v2.1 — Indus Digital Market Intelligence
 All data sources are FREE with no paid API keys required.
-
-Free sources used:
-  - open.er-api.com     → multi-currency exchange rates (no key needed)
-  - api.coingecko.com   → USDT/crypto prices (free, no key needed)
-  - remoteok.com/api    → real remote job listings + skill tags (free, no key)
-  - feedparser RSS      → Dawn Tech + The News headlines (free)
-  - Groq API            → AI market briefing (free tier, already in your repo)
-  - Supabase            → storage (free tier, already in your repo)
 """
 
 import os
@@ -21,7 +13,7 @@ from groq import Groq
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
-# 1. CREDENTIALS  (set these in GitHub Actions Secrets / Streamlit Secrets)
+# 1. CREDENTIALS
 # ---------------------------------------------------------------------------
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
@@ -35,10 +27,9 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 # 2. HELPER — safe HTTP fetch with timeout + retries
 # ---------------------------------------------------------------------------
 def safe_get(url, retries=3, timeout=15):
-    """Fetch a URL with retries. Returns parsed JSON or None on failure."""
     for attempt in range(retries):
         try:
-            resp = requests.get(url, timeout=timeout, headers={"User-Agent": "IDMI/2.0"})
+            resp = requests.get(url, timeout=timeout, headers={"User-Agent": "IDMI/2.1"})
             resp.raise_for_status()
             return resp.json()
         except Exception as e:
@@ -48,15 +39,9 @@ def safe_get(url, retries=3, timeout=15):
 
 
 # ---------------------------------------------------------------------------
-# 3. EXCHANGE RATES  — open.er-api.com (no API key, truly free)
+# 3. EXCHANGE RATES
 # ---------------------------------------------------------------------------
 def fetch_exchange_rates():
-    """
-    Returns a dict with PKR rates for currencies Pakistani freelancers care about:
-      USD (Upwork/Fiverr default), EUR, GBP, SAR (Saudi remittance),
-      AED (UAE remittance), CNY (China trade)
-    Also returns purchasing power index: how many PKR you get for $100.
-    """
     print("  Fetching exchange rates...")
     data = safe_get("https://open.er-api.com/v6/latest/USD")
     if not data or data.get("result") != "success":
@@ -77,13 +62,9 @@ def fetch_exchange_rates():
 
 
 # ---------------------------------------------------------------------------
-# 4. CRYPTO / STABLECOIN  — CoinGecko free API (no key needed)
+# 4. CRYPTO / STABLECOIN
 # ---------------------------------------------------------------------------
 def fetch_crypto_rates():
-    """
-    USDT is how many Pakistani freelancers receive and hold money.
-    Returns USDT price in USD and PKR.
-    """
     print("  Fetching crypto rates...")
     data = safe_get(
         "https://api.coingecko.com/api/v3/simple/price"
@@ -100,9 +81,8 @@ def fetch_crypto_rates():
 
 
 # ---------------------------------------------------------------------------
-# 5. REAL REMOTE JOBS  — RemoteOK public API (free, no key)
+# 5. REAL REMOTE JOBS
 # ---------------------------------------------------------------------------
-# Skills most relevant to Pakistani freelancers on global platforms
 TRACKED_SKILLS = [
     "python", "javascript", "react", "node", "php", "wordpress",
     "django", "flutter", "android", "ios", "devops", "aws",
@@ -112,17 +92,11 @@ TRACKED_SKILLS = [
 ]
 
 def fetch_jobs_and_skills():
-    """
-    Pulls real job listings from RemoteOK (free public JSON API).
-    Counts skill tag frequency to produce a skills demand ranking.
-    Returns total job count and top 10 skills as JSON.
-    """
     print("  Fetching remote jobs from RemoteOK...")
     data = safe_get("https://remoteok.com/api")
     if not data:
         return {"job_volume": 0, "top_skills": json.dumps([])}
 
-    # First item is a legal notice dict, skip it
     jobs = [j for j in data if isinstance(j, dict) and "tags" in j]
 
     tag_counter = Counter()
@@ -142,45 +116,54 @@ def fetch_jobs_and_skills():
 
 
 # ---------------------------------------------------------------------------
-# 6. NEWS HEADLINES  — Free RSS feeds, no API key needed
+# 6. NEWS HEADLINES — Diverse RSS feeds (Pakistan + global tech)
 # ---------------------------------------------------------------------------
 RSS_FEEDS = [
-    ("Dawn Tech",     "https://www.dawn.com/feeds/technology"),
-    ("The News Tech", "https://www.thenews.com.pk/rss/2/12"),
-    ("ProPakistani",  "https://propakistani.pk/feed/"),
+    # Pakistani sources
+    ("Dawn Tech",        "https://www.dawn.com/feeds/technology"),
+    ("The News Tech",    "https://www.thenews.com.pk/rss/2/12"),
+    ("ProPakistani",     "https://propakistani.pk/feed/"),
+    ("Profit Pakistan",  "https://profit.pakistantoday.com.pk/feed/"),
+    ("ARY News Tech",    "https://arynews.tv/feed/"),
+    # Global tech relevant to freelancers
+    ("TechCrunch",       "https://techcrunch.com/feed/"),
+    ("Hacker News",      "https://hnrss.org/frontpage"),
+    ("Dev.to",           "https://dev.to/feed"),
 ]
 
-def fetch_news_headlines(max_per_feed=3):
+def fetch_news_headlines(max_per_feed=2):
     """
-    Pulls latest tech/business headlines from Pakistani news RSS feeds.
-    Returns a JSON list of {title, source, link} dicts.
-    feedparser is free, open-source, requires no API key.
+    Pulls headlines from 8 RSS feeds — 5 Pakistani + 3 global tech.
+    max_per_feed=2 keeps the mix balanced (cap 15 total).
     """
     print("  Fetching news headlines via RSS...")
     headlines = []
     for source_name, url in RSS_FEEDS:
         try:
             feed = feedparser.parse(url)
+            if not feed.entries:
+                print(f"  [WARN] No entries from {source_name}")
+                continue
             for entry in feed.entries[:max_per_feed]:
-                headlines.append({
-                    "title":  entry.get("title", ""),
-                    "source": source_name,
-                    "link":   entry.get("link", ""),
-                })
+                title = entry.get("title", "").strip()
+                link  = entry.get("link", "")
+                if title and link:
+                    headlines.append({
+                        "title":  title,
+                        "source": source_name,
+                        "link":   link,
+                    })
         except Exception as e:
             print(f"  [WARN] RSS feed failed ({source_name}): {e}")
 
-    return json.dumps(headlines[:10])  # cap at 10 headlines total
+    print(f"  Collected {len(headlines)} headlines from {len(RSS_FEEDS)} feeds.")
+    return json.dumps(headlines[:15])
 
 
 # ---------------------------------------------------------------------------
-# 7. AI MARKET BRIEFING  — Groq free tier (Llama 3.3 70B)
+# 7. AI MARKET BRIEFING
 # ---------------------------------------------------------------------------
 def generate_ai_insight(rates, jobs, top_skills_raw):
-    """
-    Sends real data to Groq and gets a 3-sentence market briefing.
-    Groq free tier: 14,400 req/day — more than enough for hourly runs.
-    """
     print("  Generating AI market insight via Groq...")
 
     top_skills_list = ", ".join(
@@ -228,11 +211,10 @@ Be direct, data-driven, and specific to Pakistan's freelance economy.
 def run_ingestion_pipeline():
     now = datetime.now(timezone.utc)
     print(f"\n{'='*55}")
-    print(f"  IDMI Ingestion Pipeline v2  |  {now.strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"  IDMI Ingestion Pipeline v2.1  |  {now.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"{'='*55}")
 
-    # --- Harvest ---
-    rates  = fetch_exchange_rates()
+    rates = fetch_exchange_rates()
     if not rates:
         print("[FATAL] Cannot proceed without exchange rate data. Aborting.")
         return
@@ -241,44 +223,31 @@ def run_ingestion_pipeline():
     jobs   = fetch_jobs_and_skills()
     news   = fetch_news_headlines()
 
-    # Merge crypto into rates dict for AI prompt
     rates.update(crypto)
 
     ai_insight = generate_ai_insight(rates, jobs, jobs["top_skills"])
 
-    # --- Build payload ---
     payload = {
         "timestamp":              now.isoformat(),
-
-        # Exchange rates
         "usd_pkr_rate":           rates["usd_pkr"],
         "eur_pkr_rate":           rates["eur_pkr"],
         "gbp_pkr_rate":           rates["gbp_pkr"],
         "sar_pkr_rate":           rates["sar_pkr"],
         "aed_pkr_rate":           rates["aed_pkr"],
         "purchasing_power_index": rates["purchasing_power_index"],
-
-        # Crypto
         "usdt_pkr_rate":          rates.get("usdt_pkr"),
         "btc_usd_rate":           rates.get("btc_usd"),
-
-        # Jobs
         "job_volume":             jobs["job_volume"],
-        "top_skills":             jobs["top_skills"],   # JSON string
-
-        # News
-        "news_headlines":         news,                 # JSON string
-
-        # AI
+        "top_skills":             jobs["top_skills"],
+        "news_headlines":         news,
         "ai_sentiment":           ai_insight,
     }
 
-    # --- Store ---
     print("  Storing to Supabase...")
     try:
         supabase.table("market_intel").insert(payload).execute()
         print(f"\n  Pipeline complete. {len(payload)} fields stored.")
-        print(f"  USD/PKR: {rates['usd_pkr']} | Jobs: {jobs['job_volume']} | Skills: {jobs['top_skills'][:60]}...")
+        print(f"  USD/PKR: {rates['usd_pkr']} | Jobs: {jobs['job_volume']} | Headlines: {len(json.loads(news))}")
     except Exception as e:
         print(f"  [FATAL] Supabase insert failed: {e}")
         raise
