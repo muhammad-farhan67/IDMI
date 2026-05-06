@@ -1,5 +1,3 @@
-content = """# IDMI: Indus Digital Market Intelligence 🇵🇰
-
 **Indus Digital Market Intelligence (IDMI)** is a real-time intelligence platform purpose-built for Pakistan's digital economy. It tracks exchange rates, remote job market trends, and skill demand—synthesizing everything into actionable briefings powered by AI.
 
 ---
@@ -31,8 +29,3 @@ The platform operates on a fully automated intelligence cycle:
 * **AI Briefings:** Groq Cloud (Llama 3.3 70B Model)
 
 ---
-*Built for the future of Pakistan's digital frontier.*
-"""
-
-with open("README.md", "w") as f:
-    f.write(content)
