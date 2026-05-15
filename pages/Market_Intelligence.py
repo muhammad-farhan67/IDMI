@@ -306,50 +306,7 @@ with tab_jobs:
 
     st.divider()
 
-    # ── Currency rate trend ───────────────────────────────────────────────
-    st.subheader("Currency Rate Comparison — All Tracked Pairs")
-    rate_cols = [c for c in ["usd_pkr_rate","eur_pkr_rate","gbp_pkr_rate",
-                              "usdt_pkr_rate","sar_pkr_rate","aed_pkr_rate"]
-                 if c in df.columns and df[c].notna().any()]
-
-    if rate_cols:
-        label_map = {
-            "usd_pkr_rate":"USD/PKR","eur_pkr_rate":"EUR/PKR",
-            "gbp_pkr_rate":"GBP/PKR","usdt_pkr_rate":"USDT/PKR",
-            "sar_pkr_rate":"SAR/PKR","aed_pkr_rate":"AED/PKR",
-        }
-        df_m = df[["timestamp"]+rate_cols].melt(
-            id_vars="timestamp", var_name="Pair", value_name="PKR Rate"
-        )
-        df_m["Pair"] = df_m["Pair"].map(label_map)
-
-        selected_pairs = st.multiselect(
-            "Currency pairs to display",
-            list(df_m["Pair"].unique()),
-            default=list(df_m["Pair"].unique()),
-        )
-        if selected_pairs:
-            fig_mc = px.line(
-                df_m[df_m["Pair"].isin(selected_pairs)],
-                x="timestamp", y="PKR Rate", color="Pair",
-                line_shape="spline",
-                color_discrete_sequence=["#1a7a3c","#C9A84C","#2563eb",
-                                          "#0891b2","#dc2626","#7c3aed"],
-                labels={"PKR Rate":"PKR","timestamp":""},
-            )
-            fig_mc.update_layout(
-                paper_bgcolor="white", plot_bgcolor="white",
-                margin=dict(l=0,r=0,t=10,b=0),
-                xaxis=dict(showgrid=False),
-                yaxis=dict(gridcolor="#f0f0f0"),
-                legend=dict(orientation="h",yanchor="bottom",y=1.02),
-                hovermode="x unified",
-            )
-            st.plotly_chart(fig_mc, use_container_width=True)
-
-    st.divider()
-
-    
+   
 
 
 # ─────────────────────────────────────────────────────────────────────────
