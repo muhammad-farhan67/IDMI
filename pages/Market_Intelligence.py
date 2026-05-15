@@ -170,43 +170,7 @@ with tab_skills:
 # ─────────────────────────────────────────────────────────────────────────
 with tab_jobs:
 
-    # ── Volume trend ─────────────────────────────────────────────────────
-    st.subheader("Remote Job Volume Trend")
-    col_j1, col_j2 = st.columns([2, 1])
-
-    with col_j1:
-        if "job_volume" in df.columns:
-            fig_jv = px.area(
-                df, x="timestamp", y="job_volume",
-                color_discrete_sequence=["#1a7a3c"],
-                labels={"job_volume":"Live listings","timestamp":""},
-            )
-            fig_jv.update_traces(fill="tozeroy", fillcolor="rgba(26,122,60,0.10)")
-            fig_jv.update_layout(
-                paper_bgcolor="white", plot_bgcolor="white",
-                margin=dict(l=0,r=0,t=10,b=0),
-                xaxis=dict(showgrid=False),
-                yaxis=dict(gridcolor="#f0f0f0"),
-                hovermode="x unified",
-            )
-            st.plotly_chart(fig_jv, use_container_width=True)
-
-    with col_j2:
-        st.markdown("**What this tracks**")
-        st.write(
-            "Job volume is pulled live from RemoteOK's public API on every "
-            "pipeline run — reflecting global remote tech listings. "
-            "Higher volume = more competition but also more opportunity."
-        )
-        if "job_volume" in df.columns and len(df) >= 2:
-            curr = int(df.iloc[-1]["job_volume"])
-            prev = int(df.iloc[-2]["job_volume"])
-            d    = curr - prev
-            st.metric("Current listings", f"{curr:,}", f"{d:+,}")
-            trend = "market heating up 📈" if d > 0 else "market cooling slightly 📉" if d < 0 else "stable 📊"
-            st.caption(f"Trend: {trend}")
-
-    st.divider()
+    
 
     # ── Live job listings with search ────────────────────────────────────
     st.subheader("🔍 Search Live Remote Jobs")
