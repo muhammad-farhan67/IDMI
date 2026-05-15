@@ -70,7 +70,7 @@ st.divider()
 
 # ── STRATOS briefing ─────────────────────────────────────────────────
 st.subheader("🧠 STRATOS — Latest Market Briefing")
-    raw_briefing = latest.get("ai_sentiment", "")
+raw_briefing = latest.get("ai_sentiment", "")
     if raw_briefing:
         # Try to render the structured format with coloured labels
         for line in raw_briefing.split("\n"):
