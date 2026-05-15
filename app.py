@@ -71,7 +71,7 @@ st.divider()
 # ── STRATOS briefing ─────────────────────────────────────────────────
 st.subheader("🧠 STRATOS — Latest Market Briefing")
 raw_briefing = latest.get("ai_sentiment", "")
-    if raw_briefing:
+if raw_briefing:
         # Try to render the structured format with coloured labels
         for line in raw_briefing.split("\n"):
             line = line.strip()
@@ -106,7 +106,7 @@ raw_briefing = latest.get("ai_sentiment", "")
                 )
             else:
                 st.info(line)
-    else:
+else:
         st.info("🧠 No briefing yet — run the pipeline to populate.")
 
 # ── Two charts ────────────────────────────────────────────────────────────
