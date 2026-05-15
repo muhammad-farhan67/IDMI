@@ -1,8 +1,3 @@
-"""
-pages/Market_Intelligence.py — Skills demand, job trends, platform analytics.
-v3.0: Tab 2 now shows live job listings with search + Apply links.
-       STRATOS briefing shown in structured format everywhere.
-"""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -20,16 +15,39 @@ inject_css()
 st.title("Market Intelligence")
 st.caption("Skills demand, live job listings, platform analytics, and salary benchmarks — refreshed every pipeline run.")
 
-df     = load_data()
+df = load_data()
 if df.empty:
     st.warning("No data yet. Run the harvester pipeline first.")
     st.stop()
 
 latest = get_latest(df)
-skills = parse_json_col(latest, "top_skills")
 
-# Live rate for salary conversions
+# ─────────────────────────────────────────────────────────────────────────
+# EXTRACT V4.0 PIPELINE METRICS & DATA BLOBS
+# ─────────────────────────────────────────────────────────────────────────
+skills = parse_json_col(latest, "top_skills")
+skill_intel = parse_json_col(latest, "skill_intelligence")
+opp_alerts = parse_json_col(latest, "opportunity_alerts")
+hiring_countries = parse_json_col(latest, "hiring_countries")
+best_skill = latest.get("best_skill_month", "N/A")
 USD_PKR = float(latest.get("usd_pkr_rate") or 280.0)
+current_volume = int(latest.get("job_volume", 0))
+
+# ─────────────────────────────────────────────────────────────────────────
+# TOP-LEVEL GLOBAL KPI BANNER (v4.0 Feature)
+# ─────────────────────────────────────────────────────────────────────────
+m1, m2, m3, m4 = st.columns(4)
+with m1:
+    st.metric("Total Active Remote Jobs", f"{current_volume:,}")
+with m2:
+    st.metric("Top Skill of the Month", str(best_skill).upper())
+with m3:
+    st.metric("Live USD / PKR Rate", f"₨ {USD_PKR:,.2f}")
+with m4:
+    active_alerts = len(opp_alerts) if isinstance(opp_alerts, list) else 0
+    st.metric("High-Priority Alerts", f"{active_alerts} Active")
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 tab_skills, tab_jobs, tab_platforms, tab_salaries = st.tabs([
     "🔧 Skills Demand",
@@ -38,11 +56,19 @@ tab_skills, tab_jobs, tab_platforms, tab_salaries = st.tabs([
     "💵 Salary Benchmarks",
 ])
 
-
 # ─────────────────────────────────────────────────────────────────────────
 # TAB 1 — SKILLS DEMAND
 # ─────────────────────────────────────────────────────────────────────────
 with tab_skills:
+    # --- Skill Intelligence Sub-Section (v4.0 Feature) ---
+    if skill_intel:
+        st.subheader("📈 Automated Skill Intelligence & Growth Analysis")
+        st.caption("Deep-dive evaluation extracted from historical snapshot variations.")
+        
+        intel_df = pd.DataFrame(skill_intel)
+        # Dynamic styling support if columns are available
+        st.dataframe(intel_df, use_container_width=True, hide_index=True)
+        st.divider()
 
     st.subheader("Top In-Demand Skills — Latest Snapshot")
     if skills:
@@ -164,14 +190,28 @@ with tab_skills:
         use_container_width=True, hide_index=True,
     )
 
-
 # ─────────────────────────────────────────────────────────────────────────
 # TAB 2 — LIVE JOB LISTINGS
 # ─────────────────────────────────────────────────────────────────────────
 with tab_jobs:
+    # --- Opportunity Alerts (v4.0 Feature) ---
+    if opp_alerts:
+        st.subheader("🚨 Opportunity Alerts")
+        for alert in opp_alerts:
+            # Handle structured data map or plain string fallback safely
+            alert_text = alert.get("message", str(alert)) if isinstance(alert, dict) else str(alert)
+            alert_type = alert.get("type", "info") if isinstance(alert, dict) else "info"
+            
+            if alert_type == "high":
+                st.error(f"**High Priority:** {alert_text}")
+            elif alert_type == "warning":
+                st.warning(f"**Market Shift:** {alert_text}")
+            else:
+                st.info(f"**Notice:** {alert_text}")
+        st.divider()
 
-    # ── Volume trend ─────────────────────────────────────────────────────
-    st.subheader("Remote Job Volume Trend")
+    # --- Volume Trend & Global Hiring Geography Layout ---
+    st.subheader("Remote Job Volume & Geographic Breakdown")
     col_j1, col_j2 = st.columns([2, 1])
 
     with col_j1:
@@ -192,33 +232,44 @@ with tab_jobs:
             st.plotly_chart(fig_jv, use_container_width=True)
 
     with col_j2:
-        st.markdown("**What this tracks**")
-        st.write(
-            "Job volume is pulled live from RemoteOK's public API on every "
-            "pipeline run — reflecting global remote tech listings. "
-            "Higher volume = more competition but also more opportunity."
-        )
-        if "job_volume" in df.columns and len(df) >= 2:
-            curr = int(df.iloc[-1]["job_volume"])
-            prev = int(df.iloc[-2]["job_volume"])
-            d    = curr - prev
-            st.metric("Current listings", f"{curr:,}", f"{d:+,}")
-            trend = "market heating up 📈" if d > 0 else "market cooling slightly 📉" if d < 0 else "stable 📊"
-            st.caption(f"Trend: {trend}")
+        # --- Hiring Countries Visualizer (v4.0 Feature) ---
+        if hiring_countries:
+            st.markdown("**Top Global Hiring Hubs**")
+            geo_df = pd.DataFrame(hiring_countries)
+            
+            # Identify internal structure names dynamically
+            c_col = "country" if "country" in geo_df.columns else geo_df.columns[0]
+            v_col = "count" if "count" in geo_df.columns else geo_df.columns[1]
+            
+            fig_geo = px.bar(
+                geo_df.sort_values(v_col, ascending=True).tail(5),
+                x=v_col, y=c_col, orientation="h",
+                color_discrete_sequence=["#01411C"],
+                labels={v_col: "Jobs Posted", c_col: ""}
+            )
+            fig_geo.update_layout(
+                paper_bgcolor="white", plot_bgcolor="white",
+                margin=dict(l=0, r=0, t=10, b=0), height=220,
+                xaxis=dict(showgrid=False), yaxis=dict(showgrid=False)
+            )
+            st.plotly_chart(fig_geo, use_container_width=True)
+        else:
+            st.markdown("**What this tracks**")
+            st.write(
+                "Job volume is pulled live from public telemetry on every "
+                "pipeline run — reflecting global remote tech listings."
+            )
 
     st.divider()
 
     # ── Live job listings with search ────────────────────────────────────
     st.subheader("🔍 Search Live Remote Jobs")
-    st.caption("Jobs pulled from RemoteOK. Click **Apply Now** to open the job on RemoteOK.")
+    st.caption("Jobs pulled from execution snapshots. Click **Apply Now** to open the target destination link.")
 
     raw_jobs = parse_json_col(latest, "jobs_data")
 
     if not raw_jobs:
-        st.info(
-            "Job listings data not available yet — run the updated v3.0 harvester "
-            "pipeline to start collecting detailed job records."
-        )
+        st.info("Job listings data not available yet — run the pipeline to start collecting detailed job records.")
     else:
         # ── Search & filter controls ──────────────────────────────────────
         fj1, fj2, fj3 = st.columns([3, 2, 1])
@@ -264,12 +315,10 @@ with tab_jobs:
         if not filtered_jobs:
             st.info("No jobs match your filters. Try a different keyword or clear the filters.")
         else:
-            # Paginate: show 15 at a time
             PAGE_SIZE = 15
             if "job_page" not in st.session_state:
                 st.session_state.job_page = 0
 
-            # Reset page on new search
             total_pages = max(1, (len(filtered_jobs) + PAGE_SIZE - 1) // PAGE_SIZE)
             page = st.session_state.job_page
             if page >= total_pages:
@@ -301,7 +350,7 @@ with tab_jobs:
                           <div style="font-size:13px;color:#5a7263;margin-top:2px;">
                             🏢 {j.get('company','')}
                             &nbsp;·&nbsp; 🌍 {j.get('location','Worldwide')}
-                            {'&nbsp;·&nbsp; 📅 ' + j['date'] if j.get('date') else ''}
+                            {f"&nbsp;·&nbsp; 📅 {j['date']}" if j.get('date') else ''}
                           </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -314,18 +363,16 @@ with tab_jobs:
                     unsafe_allow_html=True,
                 )
 
-                # Apply button
                 apply_url = j.get("url", "https://remoteok.com/remote-jobs")
                 st.markdown(
                     f'<a href="{apply_url}" target="_blank" style="'
                     f'display:inline-block;margin-top:-4px;margin-bottom:4px;'
                     f'padding:4px 14px;background:#01411C;color:#fff;border-radius:8px;'
                     f'font-size:12px;font-weight:600;text-decoration:none;">'
-                    f'Apply on RemoteOK ↗</a>',
+                    f'Apply Now ↗</a>',
                     unsafe_allow_html=True,
                 )
 
-            # Pagination controls
             if total_pages > 1:
                 st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
                 p1, p2, p3 = st.columns([1, 2, 1])
@@ -345,7 +392,7 @@ with tab_jobs:
     # ── Currency rate trend ───────────────────────────────────────────────
     st.subheader("Currency Rate Comparison — All Tracked Pairs")
     rate_cols = [c for c in ["usd_pkr_rate","eur_pkr_rate","gbp_pkr_rate",
-                              "usdt_pkr_rate","sar_pkr_rate","aed_pkr_rate"]
+                             "usdt_pkr_rate","sar_pkr_rate","aed_pkr_rate"]
                  if c in df.columns and df[c].notna().any()]
 
     if rate_cols:
@@ -370,7 +417,7 @@ with tab_jobs:
                 x="timestamp", y="PKR Rate", color="Pair",
                 line_shape="spline",
                 color_discrete_sequence=["#1a7a3c","#C9A84C","#2563eb",
-                                          "#0891b2","#dc2626","#7c3aed"],
+                                         "#0891b2","#dc2626","#7c3aed"],
                 labels={"PKR Rate":"PKR","timestamp":""},
             )
             fig_mc.update_layout(
@@ -389,7 +436,6 @@ with tab_jobs:
     st.subheader("🧠 STRATOS — Latest Market Briefing")
     raw_briefing = latest.get("ai_sentiment", "")
     if raw_briefing:
-        # Try to render the structured format with coloured labels
         for line in raw_briefing.split("\n"):
             line = line.strip()
             if not line:
@@ -426,7 +472,6 @@ with tab_jobs:
     else:
         st.info("🧠 No briefing yet — run the pipeline to populate.")
 
-
 # ─────────────────────────────────────────────────────────────────────────
 # TAB 3 — PLATFORM COMPARISON
 # ─────────────────────────────────────────────────────────────────────────
@@ -446,7 +491,6 @@ with tab_platforms:
 
     plat_df = pd.DataFrame(platforms_data)
 
-    # Render with Visit links
     for _, row in plat_df.iterrows():
         pc1, pc2 = st.columns([5, 1])
         with pc1:
@@ -460,7 +504,6 @@ with tab_platforms:
 
     st.divider()
 
-    # Fee comparison chart
     st.subheader("Platform Fee Comparison — on $1,000 earned")
     fee_data = [
         ("Upwork",        150.0),
@@ -488,10 +531,8 @@ with tab_platforms:
     )
     st.plotly_chart(fig_fee, use_container_width=True)
     st.caption(
-        "Upwork fee on $1,000: first $500 @ 20% ($100) + next $500 @ 10% ($50) = $150 total. "
-        "Fee drops to 5% after $10,000 lifetime with a client."
+        "Upwork fee on $1,000: first $500 @ 20% ($100) + next $500 @ 10% ($50) = $150 total."
     )
-
 
 # ─────────────────────────────────────────────────────────────────────────
 # TAB 4 — SALARY BENCHMARKS
