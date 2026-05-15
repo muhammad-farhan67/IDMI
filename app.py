@@ -68,7 +68,46 @@ r4.metric("Purchasing Power Index", latest.get("purchasing_power_index","—"),
 
 st.divider()
 
-
+# ── STRATOS briefing ─────────────────────────────────────────────────
+    st.subheader("🧠 STRATOS — Latest Market Briefing")
+    raw_briefing = latest.get("ai_sentiment", "")
+    if raw_briefing:
+        # Try to render the structured format with coloured labels
+        for line in raw_briefing.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("Currency Outlook:"):
+                st.markdown(
+                    f"<div style='background:#f0fdf4;border-left:4px solid #16a34a;"
+                    f"padding:10px 14px;border-radius:6px;margin-bottom:8px;'>"
+                    f"<strong style='color:#15803d;'>💱 Currency Outlook</strong><br>"
+                    f"<span style='color:#1c1c1c'>{line.replace('Currency Outlook:','').strip()}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            elif line.startswith("Job Market:"):
+                st.markdown(
+                    f"<div style='background:#fffbeb;border-left:4px solid #d97706;"
+                    f"padding:10px 14px;border-radius:6px;margin-bottom:8px;'>"
+                    f"<strong style='color:#b45309;'>📋 Job Market</strong><br>"
+                    f"<span style='color:#1c1c1c'>{line.replace('Job Market:','').strip()}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            elif line.startswith("Action Item:"):
+                st.markdown(
+                    f"<div style='background:#eff6ff;border-left:4px solid #2563eb;"
+                    f"padding:10px 14px;border-radius:6px;margin-bottom:8px;'>"
+                    f"<strong style='color:#1d4ed8;'>⚡ Action Item</strong><br>"
+                    f"<span style='color:#1c1c1c'>{line.replace('Action Item:','').strip()}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.info(line)
+    else:
+        st.info("🧠 No briefing yet — run the pipeline to populate.")
 
 # ── Two charts ────────────────────────────────────────────────────────────
 col_l, col_r = st.columns(2, gap="large")
