@@ -15,7 +15,9 @@ inject_css()
 st.title("About IDMI")
 st.caption("Indus Digital Market Intelligence — Pakistan's freelancer intelligence platform")
 
+col1, col2 = st.columns([3, 2], gap="large")
 
+with col1:
     st.markdown("""
 ## What is IDMI?
 
@@ -91,6 +93,8 @@ The AI Price Search tab on the Tech Prices page lets you ask STRATOS about any s
 | **News** | RSS feeds via feedparser |
 | **Hosting** | Streamlit Community Cloud (free) |
 
-""")
+## Disclaimer
 
+IDMI is for informational purposes only. Nothing on this platform constitutes financial advice. Exchange rates and market data are provided as-is and may be delayed. Always verify rates before making financial decisions.
+""")
 
