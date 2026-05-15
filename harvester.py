@@ -177,16 +177,6 @@ def fetch_jobs_and_skills():
 
 
 # ---------------------------------------------------------------------------
-# 6. NEWS — Tech-specific RSS feeds
-# ---------------------------------------------------------------------------
-RSS_FEEDS = [
-    {"name": "ProPakistani",    "url": "https://propakistani.pk/feed/",                            "pk": True,  "max": 3},
-    {"name": "Profit Pakistan", "url": "https://profit.pakistantoday.com.pk/feed/",                "pk": True,  "max": 3},
-    {"name": "Hacker News",     "url": "https://hnrss.org/frontpage",                              "pk": False, "max": 3},
-    {"name": "TechCrunch",      "url": "https://techcrunch.com/feed/",                             "pk": False, "max": 2},
-    {"name": "The Verge",       "url": "https://www.theverge.com/rss/index.xml",                   "pk": False, "max": 2},
-    {"name": "Ars Technica",    "url": "https://feeds.arstechnica.com/arstechnica/technology-lab", "pk": False, "max": 1},
-]
 
 TECH_KEYWORDS = [
     "software", "app", "tech", "ai", "startup", "digital", "code", "python",
@@ -202,47 +192,13 @@ def is_tech_relevant(title: str) -> bool:
     return any(kw in title_lower for kw in TECH_KEYWORDS)
 
 
-def fetch_news_headlines():
-    print("  Fetching news headlines via RSS...")
-    headlines = []
-    for feed_cfg in RSS_FEEDS:
-        source = feed_cfg["name"]
-        url    = feed_cfg["url"]
-        is_pk  = feed_cfg["pk"]
-        max_n  = feed_cfg["max"]
-        try:
-            feed = feedparser.parse(url)
-            if not feed.entries:
-                print(f"  [WARN] No entries from {source}")
-                continue
-            count = 0
-            for entry in feed.entries:
-                if count >= max_n:
-                    break
-                title = entry.get("title", "").strip()
-                link  = entry.get("link", "")
-                if not title or not link:
-                    continue
-                if is_pk and not is_tech_relevant(title):
-                    continue
-                headlines.append({
-                    "title":  title,
-                    "source": source,
-                    "link":   link,
-                    "pk":     is_pk,
-                })
-                count += 1
-        except Exception as e:
-            print(f"  [WARN] RSS feed failed ({source}): {e}")
 
-    print(f"  Collected {len(headlines)} headlines.")
-    return json.dumps(headlines[:15])
 
 
 # ---------------------------------------------------------------------------
-# 7. AI BRIEFING — STRATOS with richer context (news + job titles)
+# 7. AI BRIEFING — STRATOS with richer context (job titles)
 # ---------------------------------------------------------------------------
-def generate_ai_insight(rates, jobs, top_skills_raw, news_raw):
+def generate_ai_insight(rates, jobs, top_skills_raw):
     print("  Generating STRATOS AI market insight via Groq...")
 
     top_skills_list = "unavailable"
@@ -257,13 +213,7 @@ def generate_ai_insight(rates, jobs, top_skills_raw, news_raw):
         titles = [j["title"] for j in all_jobs[:8] if j.get("title")]
         job_titles_sample = " | ".join(titles) if titles else "unavailable"
 
-    # Latest news headlines for context
-    news_context = "unavailable"
-    if news_raw:
-        parsed_news = json.loads(news_raw)
-        headlines = [f"[{n['source']}] {n['title']}" for n in parsed_news[:6]]
-        news_context = "\n".join(headlines) if headlines else "unavailable"
-
+  
     prompt = f"""
 You are STRATOS, the AI engine of IDMI (Indus Digital Market Intelligence) — Pakistan's freelancer intelligence platform.
 
@@ -284,7 +234,7 @@ Currency Outlook: [Is now a good time for Pakistani freelancers to invoice in US
 
 Job Market: [Which specific skills/roles are seeing the most live demand right now, and what does that mean for a Pakistani freelancer's earnings this week?]
 
-Action Item: [One concrete, actionable recommendation based on ALL the above data — rates, jobs, AND a relevant news item if applicable.]
+Action Item: [One concrete, actionable recommendation based on ALL the above data — rates, jobs.]
 
 Be specific, data-driven, and directly relevant to Pakistan's freelance economy. No fluff.
 """
@@ -333,10 +283,9 @@ def run_ingestion_pipeline():
 
     crypto = fetch_crypto_rates()
     jobs   = fetch_jobs_and_skills()
-    news   = fetch_news_headlines()
     rates.update(crypto)
 
-    ai_insight = generate_ai_insight(rates, jobs, jobs["top_skills"], news)
+    ai_insight = generate_ai_insight(rates, jobs, jobs["top_skills"])
 
     payload = {
         "timestamp":              now.isoformat(),
@@ -351,7 +300,6 @@ def run_ingestion_pipeline():
         "job_volume":             jobs["job_volume"],
         "top_skills":             jobs["top_skills"],
         "jobs_data":              jobs["jobs_data"],   # NEW — full job details
-        "news_headlines":         news,
         "ai_sentiment":           ai_insight,
     }
 
@@ -361,7 +309,7 @@ def run_ingestion_pipeline():
         print(f"\n  ✓ Pipeline complete. {len(payload)} fields stored.")
         print(f"  USD/PKR: {rates['usd_pkr']} | "
               f"Jobs: {jobs['job_volume']} | "
-              f"Headlines: {len(json.loads(news))}")
+              )
     except Exception as e:
         print(f"  [FATAL] Supabase insert failed: {e}")
         raise
