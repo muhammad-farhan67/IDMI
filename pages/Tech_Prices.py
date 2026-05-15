@@ -1,9 +1,7 @@
 """
 pages/Tech_Prices.py — Software subscription and hardware prices in PKR.
-
-All USD prices are multiplied by the live USD/PKR rate from IDMI's pipeline.
-No paid APIs needed — prices are maintained as a curated dataset.
-Tabs: Software | Hardware | AI Price Search (Groq)
+v3.0: Software tab now has search + clickable "Visit Site" links.
+       Hardware tab has "Search Online" links.
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -20,7 +18,7 @@ inject_css()
 st.title("Tech Prices in PKR")
 st.caption(
     "Live USD → PKR conversion of popular software subscriptions and hardware. "
-    "Prices update automatically as exchange rates change."
+    "Click any link to visit the official product page. Prices update automatically as exchange rates change."
 )
 
 # ── Live rate ─────────────────────────────────────────────────────────────
@@ -39,127 +37,129 @@ def to_pkr(usd): return round(usd * USD_PKR)
 def pkr_str(usd): return f"₨ {to_pkr(usd):,}"
 
 # ══════════════════════════════════════════════════════════════════════════
-# DATA  — curated USD prices (update these when prices change)
+# DATA — curated USD prices + official website URLs
+# Tuple format: (Name, USD_price, period, description, website_url)
 # ══════════════════════════════════════════════════════════════════════════
 
 SOFTWARE = {
     "🤖 AI & Productivity": [
-        ("ChatGPT Plus",           20.0,  "mo", "GPT-4o, image gen, custom GPTs"),
-        ("Claude Pro",             20.0,  "mo", "Claude Sonnet/Opus, extended context"),
-        ("Gemini Advanced",        19.99, "mo", "Google Gemini Ultra, Workspace AI"),
-        ("Perplexity Pro",         20.0,  "mo", "AI search with citations"),
-        ("Notion AI (add-on)",      8.0,  "mo", "AI writing inside Notion"),
-        ("Otter.ai Pro",           16.99, "mo", "AI meeting transcription"),
+        ("ChatGPT Plus",         20.00, "mo", "GPT-4o, image gen, custom GPTs",            "https://chat.openai.com/"),
+        ("Claude Pro",           20.00, "mo", "Claude Sonnet/Opus, extended context",       "https://claude.ai/"),
+        ("Gemini Advanced",      19.99, "mo", "Google Gemini Ultra, Workspace AI",          "https://gemini.google.com/"),
+        ("Perplexity Pro",       20.00, "mo", "AI search with citations",                   "https://www.perplexity.ai/"),
+        ("Notion AI (add-on)",    8.00, "mo", "AI writing inside Notion",                   "https://www.notion.so/"),
+        ("Otter.ai Pro",         16.99, "mo", "AI meeting transcription",                   "https://otter.ai/"),
     ],
     "💻 Developer Tools": [
-        ("GitHub Copilot",         10.0,  "mo", "AI code completion in any IDE"),
-        ("GitHub Pro",              4.0,  "mo", "Private repos, advanced CI/CD"),
-        ("Cursor Pro",             20.0,  "mo", "AI-first code editor"),
-        ("JetBrains All Products", 24.9,  "mo", "IntelliJ, PyCharm, WebStorm etc."),
-        ("VS Code",                 0.0,  "mo", "Free and open source"),
-        ("Postman Basic",           0.0,  "mo", "Free tier available"),
-        ("Linear",                  8.0,  "mo", "Issue tracking for devs"),
-        ("Vercel Pro",             20.0,  "mo", "Frontend deployment platform"),
-        ("Railway Starter",         5.0,  "mo", "Deploy any app easily"),
-        ("Supabase Pro",           25.0,  "mo", "Postgres + Auth + Storage"),
-        ("PlanetScale Scaler",     29.0,  "mo", "Serverless MySQL"),
-        ("Cloudflare Pro",         20.0,  "mo", "CDN, DNS, Workers"),
+        ("GitHub Copilot",       10.00, "mo", "AI code completion in any IDE",              "https://github.com/features/copilot"),
+        ("GitHub Pro",            4.00, "mo", "Private repos, advanced CI/CD",              "https://github.com/pricing"),
+        ("Cursor Pro",           20.00, "mo", "AI-first code editor",                       "https://www.cursor.com/"),
+        ("JetBrains All",        24.90, "mo", "IntelliJ, PyCharm, WebStorm etc.",           "https://www.jetbrains.com/all/"),
+        ("VS Code",               0.00, "mo", "Free and open source",                       "https://code.visualstudio.com/"),
+        ("Postman Basic",         0.00, "mo", "Free tier available",                        "https://www.postman.com/"),
+        ("Linear",                8.00, "mo", "Issue tracking for devs",                   "https://linear.app/"),
+        ("Vercel Pro",           20.00, "mo", "Frontend deployment platform",               "https://vercel.com/pricing"),
+        ("Railway Starter",       5.00, "mo", "Deploy any app easily",                      "https://railway.app/"),
+        ("Supabase Pro",         25.00, "mo", "Postgres + Auth + Storage",                  "https://supabase.com/pricing"),
+        ("PlanetScale Scaler",   29.00, "mo", "Serverless MySQL",                           "https://planetscale.com/pricing"),
+        ("Cloudflare Pro",       20.00, "mo", "CDN, DNS, Workers",                          "https://www.cloudflare.com/plans/"),
     ],
     "🎨 Design & Creative": [
-        ("Adobe CC All Apps",      54.99, "mo", "All Adobe desktop + mobile apps"),
-        ("Adobe Photoshop only",   22.99, "mo", "Single-app plan"),
-        ("Figma Professional",     12.0,  "mo", "UI/UX design & prototyping"),
-        ("Canva Pro",              12.99, "mo", "Easy graphic design"),
-        ("Framer",                 20.0,  "mo", "No-code website builder"),
-        ("Loom Business",          12.5,  "mo", "Screen recording & sharing"),
-        ("Webflow CMS",            23.0,  "mo", "Visual web development"),
-        ("Sketch",                  9.0,  "mo", "Mac-only UI design tool"),
+        ("Adobe CC All Apps",    54.99, "mo", "All Adobe desktop + mobile apps",            "https://www.adobe.com/creativecloud/plans.html"),
+        ("Adobe Photoshop only", 22.99, "mo", "Single-app plan",                            "https://www.adobe.com/products/photoshop.html"),
+        ("Figma Professional",   12.00, "mo", "UI/UX design & prototyping",                "https://www.figma.com/pricing/"),
+        ("Canva Pro",            12.99, "mo", "Easy graphic design",                        "https://www.canva.com/canva-pro/"),
+        ("Framer",               20.00, "mo", "No-code website builder",                    "https://www.framer.com/pricing/"),
+        ("Loom Business",        12.50, "mo", "Screen recording & sharing",                 "https://www.loom.com/pricing"),
+        ("Webflow CMS",          23.00, "mo", "Visual web development",                     "https://webflow.com/pricing"),
+        ("Sketch",                9.00, "mo", "Mac-only UI design tool",                    "https://www.sketch.com/pricing/"),
     ],
     "📂 Business & Collaboration": [
-        ("Google Workspace Starter", 6.0, "mo", "Gmail, Drive 30GB, Meet"),
-        ("Microsoft 365 Business",   6.0, "mo", "Office apps + 1TB OneDrive"),
-        ("Slack Pro",                7.25,"mo", "Team messaging & channels"),
-        ("Zoom Pro",                13.32,"mo", "Video meetings up to 100"),
-        ("Notion Plus",             10.0, "mo", "Notes, wikis, project management"),
-        ("Trello Standard",          5.0, "mo", "Kanban boards"),
-        ("Monday.com Basic",        12.0, "mo", "Work OS & project tracking"),
-        ("Dropbox Plus",            11.99,"mo", "2TB cloud storage"),
-        ("1Password Teams",          4.99,"mo", "Password manager per seat"),
+        ("Google Workspace Starter", 6.00, "mo", "Gmail, Drive 30GB, Meet",                "https://workspace.google.com/pricing"),
+        ("Microsoft 365 Business",   6.00, "mo", "Office apps + 1TB OneDrive",             "https://www.microsoft.com/en-us/microsoft-365/business/compare-all-plans"),
+        ("Slack Pro",                7.25, "mo", "Team messaging & channels",               "https://slack.com/intl/en-us/pricing"),
+        ("Zoom Pro",                13.32, "mo", "Video meetings up to 100",               "https://zoom.us/pricing"),
+        ("Notion Plus",             10.00, "mo", "Notes, wikis, project management",        "https://www.notion.so/pricing"),
+        ("Trello Standard",          5.00, "mo", "Kanban boards",                           "https://trello.com/pricing"),
+        ("Monday.com Basic",        12.00, "mo", "Work OS & project tracking",              "https://monday.com/pricing/"),
+        ("Dropbox Plus",            11.99, "mo", "2TB cloud storage",                       "https://www.dropbox.com/plans"),
+        ("1Password Teams",          4.99, "mo", "Password manager per seat",               "https://1password.com/teams/"),
     ],
     "🚀 Freelance Platforms": [
-        ("Upwork Freelancer Plus",  14.99,"mo", "Profile boost, connect refresh"),
-        ("Fiverr Seller Plus",      29.0, "mo", "Analytics, priority support"),
-        ("LinkedIn Premium Career", 29.99,"mo", "InMail, who viewed profile"),
-        ("Toptal",                   0.0, "mo", "Free to apply (invite-based)"),
-        ("Contra Pro",               0.0, "mo", "0% commission, free"),
+        ("Upwork Freelancer Plus",  14.99, "mo", "Profile boost, connect refresh",         "https://www.upwork.com/freelancers/memberships"),
+        ("Fiverr Seller Plus",      29.00, "mo", "Analytics, priority support",             "https://www.fiverr.com/seller_plus"),
+        ("LinkedIn Premium Career", 29.99, "mo", "InMail, who viewed profile",             "https://premium.linkedin.com/"),
+        ("Toptal",                   0.00, "mo", "Free to apply (invite-based)",            "https://www.toptal.com/"),
+        ("Contra Pro",               0.00, "mo", "0% commission, free",                    "https://contra.com/"),
     ],
     "☁️ Cloud & Hosting": [
-        ("AWS Free Tier",            0.0, "mo", "Free 12-month starter limits"),
-        ("DigitalOcean Droplet",     4.0, "mo", "1 vCPU, 1GB RAM, 25GB SSD"),
-        ("Hetzner CX11",             3.29,"mo", "2 vCPU, 2GB RAM (EU)"),
-        ("Namecheap .com domain",    8.88,"yr", "Domain registration/renewal"),
-        ("Cloudflare R2",            0.0, "mo", "15GB free object storage"),
-        ("Resend",                   0.0, "mo", "3000 emails/mo free tier"),
+        ("AWS Free Tier",            0.00, "mo", "Free 12-month starter limits",            "https://aws.amazon.com/free/"),
+        ("DigitalOcean Droplet",     4.00, "mo", "1 vCPU, 1GB RAM, 25GB SSD",              "https://www.digitalocean.com/pricing/"),
+        ("Hetzner CX11",             3.29, "mo", "2 vCPU, 2GB RAM (EU)",                   "https://www.hetzner.com/cloud"),
+        ("Namecheap .com domain",    8.88, "yr", "Domain registration/renewal",             "https://www.namecheap.com/"),
+        ("Cloudflare R2",            0.00, "mo", "15GB free object storage",                "https://www.cloudflare.com/developer-platform/r2/"),
+        ("Resend",                   0.00, "mo", "3000 emails/mo free tier",               "https://resend.com/pricing"),
     ],
     "🔐 VPN & Security": [
-        ("NordVPN Standard",         4.49,"mo", "6 devices, ad blocker"),
-        ("ExpressVPN",              12.95,"mo", "8 devices, fast servers"),
-        ("ProtonVPN Plus",           7.99,"mo", "Privacy-focused, Swiss"),
-        ("Surfshark One",            3.19,"mo", "Unlimited devices"),
-        ("Malwarebytes Premium",     3.75,"mo", "Real-time protection"),
+        ("NordVPN Standard",         4.49, "mo", "6 devices, ad blocker",                  "https://nordvpn.com/pricing/"),
+        ("ExpressVPN",              12.95, "mo", "8 devices, fast servers",                "https://www.expressvpn.com/order"),
+        ("ProtonVPN Plus",           7.99, "mo", "Privacy-focused, Swiss",                 "https://protonvpn.com/pricing"),
+        ("Surfshark One",            3.19, "mo", "Unlimited devices",                      "https://surfshark.com/pricing"),
+        ("Malwarebytes Premium",     3.75, "mo", "Real-time protection",                   "https://www.malwarebytes.com/pricing"),
     ],
 }
 
+# Hardware — format: (Name, USD_price, description, search_query_for_amazon)
 HARDWARE = {
     "💻 Laptops": [
-        ("MacBook Pro 14\" M4",       1_999, "Best-in-class for dev/design"),
-        ("MacBook Air 13\" M3",       1_099, "Lightweight, fanless, great battery"),
-        ("MacBook Air 15\" M3",       1_299, "Larger screen, same M3 chip"),
-        ("Dell XPS 15 (2024)",        1_499, "Windows powerhouse for devs"),
-        ("Lenovo ThinkPad X1 Carbon", 1_200, "Business ultrabook, great keyboard"),
-        ("ASUS Zenbook 14 OLED",        699, "Budget OLED screen, Windows 11"),
-        ("Acer Swift 3 (Ryzen 7)",      649, "Affordable all-rounder"),
+        ("MacBook Pro 14\" M4",       1_999, "Best-in-class for dev/design",                "MacBook+Pro+14+M4"),
+        ("MacBook Air 13\" M3",       1_099, "Lightweight, fanless, great battery",          "MacBook+Air+13+M3"),
+        ("MacBook Air 15\" M3",       1_299, "Larger screen, same M3 chip",                  "MacBook+Air+15+M3"),
+        ("Dell XPS 15 (2024)",        1_499, "Windows powerhouse for devs",                  "Dell+XPS+15+2024"),
+        ("Lenovo ThinkPad X1 Carbon", 1_200, "Business ultrabook, great keyboard",            "ThinkPad+X1+Carbon"),
+        ("ASUS Zenbook 14 OLED",        699, "Budget OLED screen, Windows 11",               "ASUS+Zenbook+14+OLED"),
+        ("Acer Swift 3 (Ryzen 7)",      649, "Affordable all-rounder",                       "Acer+Swift+3+Ryzen+7"),
     ],
     "🖥️ Monitors": [
-        ("LG UltraWide 34\" QHD",     449, "Curved ultrawide, great for code"),
-        ("Dell U2723D 27\" 4K",       499, "IPS 4K, USB-C 90W charging"),
-        ("LG 27UK850 27\" 4K",        399, "4K IPS, USB-C, HDR10"),
-        ("ASUS ProArt 27\" 4K",       549, "Factory calibrated, creators"),
-        ("BenQ GW2780 27\" FHD",      199, "Budget 1080p IPS, easy on eyes"),
-        ("Samsung Odyssey G5 27\"",   299, "1440p 165Hz gaming/dev dual use"),
+        ("LG UltraWide 34\" QHD",     449, "Curved ultrawide, great for code",              "LG+UltraWide+34+QHD"),
+        ("Dell U2723D 27\" 4K",       499, "IPS 4K, USB-C 90W charging",                    "Dell+U2723D"),
+        ("LG 27UK850 27\" 4K",        399, "4K IPS, USB-C, HDR10",                          "LG+27UK850"),
+        ("ASUS ProArt 27\" 4K",       549, "Factory calibrated, creators",                  "ASUS+ProArt+27+4K"),
+        ("BenQ GW2780 27\" FHD",      199, "Budget 1080p IPS, easy on eyes",                "BenQ+GW2780"),
+        ("Samsung Odyssey G5 27\"",   299, "1440p 165Hz gaming/dev dual use",               "Samsung+Odyssey+G5+27"),
     ],
     "⌨️ Keyboards & Mice": [
-        ("Logitech MX Keys S",        109, "Wireless, backlit, cross-device"),
-        ("Keychron K2 Pro",            89, "Mechanical, hot-swap, wireless"),
-        ("Logitech MX Master 3S",      99, "Best ergonomic mouse for devs"),
-        ("Magic Keyboard (USB-C)",    129, "Mac-native, slim, quiet"),
-        ("Keychron Q1 Pro",           199, "Premium gasket mount mechanical"),
-        ("Razer DeathAdder V3",        59, "Lightweight wired mouse"),
+        ("Logitech MX Keys S",        109, "Wireless, backlit, cross-device",               "Logitech+MX+Keys+S"),
+        ("Keychron K2 Pro",            89, "Mechanical, hot-swap, wireless",                "Keychron+K2+Pro"),
+        ("Logitech MX Master 3S",      99, "Best ergonomic mouse for devs",                 "Logitech+MX+Master+3S"),
+        ("Magic Keyboard (USB-C)",    129, "Mac-native, slim, quiet",                       "Apple+Magic+Keyboard+USB-C"),
+        ("Keychron Q1 Pro",           199, "Premium gasket mount mechanical",               "Keychron+Q1+Pro"),
+        ("Razer DeathAdder V3",        59, "Lightweight wired mouse",                       "Razer+DeathAdder+V3"),
     ],
     "🎧 Audio & Mic": [
-        ("Sony WH-1000XM5",          349, "Best ANC headphones"),
-        ("Apple AirPods Pro 2",      249, "Best for Mac/iPhone users"),
-        ("Jabra Evolve2 55",         449, "Business headset, Teams certified"),
-        ("Blue Yeti USB Mic",        129, "Popular podcast/call mic"),
-        ("Rode NT-USB Mini",          99, "Compact studio USB mic"),
-        ("Elgato Wave 3",            149, "Streaming/recording mic"),
+        ("Sony WH-1000XM5",          349, "Best ANC headphones",                            "Sony+WH-1000XM5"),
+        ("Apple AirPods Pro 2",      249, "Best for Mac/iPhone users",                      "AirPods+Pro+2"),
+        ("Jabra Evolve2 55",         449, "Business headset, Teams certified",              "Jabra+Evolve2+55"),
+        ("Blue Yeti USB Mic",        129, "Popular podcast/call mic",                       "Blue+Yeti+USB+Mic"),
+        ("Rode NT-USB Mini",          99, "Compact studio USB mic",                         "Rode+NT-USB+Mini"),
+        ("Elgato Wave 3",            149, "Streaming/recording mic",                        "Elgato+Wave+3"),
     ],
     "📱 Mobile & Tablets": [
-        ("iPhone 16 Pro",            999, "Best iPhone, 48MP camera"),
-        ("iPhone 15",                799, "Last year flagship, solid value"),
-        ("Samsung Galaxy S25",       799, "Best Android flagship 2025"),
-        ("iPad Pro 13\" M4",       1_099, "Best tablet for designers"),
-        ("iPad Air 13\"",             799, "Value pick for creative work"),
-        ("Samsung Galaxy Tab S9",    799, "Android tablet for productivity"),
+        ("iPhone 16 Pro",            999, "Best iPhone, 48MP camera",                       "iPhone+16+Pro"),
+        ("iPhone 15",                799, "Last year flagship, solid value",                "iPhone+15"),
+        ("Samsung Galaxy S25",       799, "Best Android flagship 2025",                     "Samsung+Galaxy+S25"),
+        ("iPad Pro 13\" M4",       1_099, "Best tablet for designers",                      "iPad+Pro+13+M4"),
+        ("iPad Air 13\"",            799, "Value pick for creative work",                   "iPad+Air+13"),
+        ("Samsung Galaxy Tab S9",    799, "Android tablet for productivity",                "Samsung+Galaxy+Tab+S9"),
     ],
     "🔌 Accessories": [
-        ("CalDigit TS4 Thunderbolt Dock",  249, "Best dock for MacBook — 18 ports"),
-        ("Anker 727 Thunderbolt Dock",     199, "12-in-1 Thunderbolt 4 hub"),
-        ("Elgato Stream Deck MK.2",        149, "Macro shortcuts, streaming"),
-        ("Logitech C920x HD Webcam",        69, "1080p/30fps, clear video calls"),
-        ("APC Back-UPS 1500VA",            160, "UPS — essential for Pakistan"),
-        ("Xiaomi 67W GaN Charger",          25, "Compact fast charger"),
-        ("SanDisk 1TB Portable SSD",        90, "Fast portable backup drive"),
+        ("CalDigit TS4 Thunderbolt Dock", 249, "Best dock for MacBook — 18 ports",          "CalDigit+TS4+Thunderbolt"),
+        ("Anker 727 Thunderbolt Dock",    199, "12-in-1 Thunderbolt 4 hub",                 "Anker+727+Thunderbolt"),
+        ("Elgato Stream Deck MK.2",       149, "Macro shortcuts, streaming",                "Elgato+Stream+Deck"),
+        ("Logitech C920x HD Webcam",       69, "1080p/30fps, clear video calls",            "Logitech+C920x"),
+        ("APC Back-UPS 1500VA",           160, "UPS — essential for Pakistan",              "APC+Back-UPS+1500VA"),
+        ("Xiaomi 67W GaN Charger",         25, "Compact fast charger",                      "Xiaomi+67W+GaN+Charger"),
+        ("SanDisk 1TB Portable SSD",       90, "Fast portable backup drive",               "SanDisk+1TB+Portable+SSD"),
     ],
 }
 
@@ -172,91 +172,122 @@ tab_sw, tab_hw, tab_search = st.tabs([
     "🔍 AI Price Search",
 ])
 
+
 # ─────────────────────────────────────────────────────────────────────────
-# TAB 1 — SOFTWARE
+# TAB 1 — SOFTWARE (with search + Visit Site links)
 # ─────────────────────────────────────────────────────────────────────────
 with tab_sw:
-    # Search + filter bar
-    sc1, sc2 = st.columns([3, 1])
+    # ── Search bar + free toggle ──────────────────────────────────────────
+    sc1, sc2 = st.columns([4, 1])
     with sc1:
         sw_search = st.text_input(
-            "Search tools", placeholder="e.g. GitHub, Adobe, VPN…",
-            label_visibility="collapsed"
+            "Search software",
+            placeholder="🔍  e.g. GitHub, Adobe, Figma, VPN, AI…",
+            label_visibility="collapsed",
         )
     with sc2:
         show_free = st.toggle("Free only", value=False)
 
-    # Build flat dataframe for display / search
+    search_lower = sw_search.strip().lower()
+
+    # ── Build flat list for chart + budget calculator ─────────────────────
     all_sw_rows = []
     for category, items in SOFTWARE.items():
-        for name, price_usd, period, desc in items:
+        for name, price_usd, period, desc, url in items:
             if show_free and price_usd > 0:
                 continue
-            if sw_search and sw_search.lower() not in name.lower() \
-                         and sw_search.lower() not in desc.lower() \
-                         and sw_search.lower() not in category.lower():
+            if search_lower and search_lower not in name.lower() \
+                             and search_lower not in desc.lower() \
+                             and search_lower not in category.lower():
                 continue
             all_sw_rows.append({
-                "Category":  category,
-                "Tool":      name,
-                "USD / mo":  f"${price_usd:.2f}" if price_usd else "Free",
-                "PKR / mo":  pkr_str(price_usd) if price_usd else "Free",
-                "Annual PKR": pkr_str(price_usd * 12) if price_usd else "Free",
-                "Note":      desc,
-                "_usd":      price_usd,
+                "category": category,
+                "name":     name,
+                "price":    price_usd,
+                "period":   period,
+                "desc":     desc,
+                "url":      url,
+                "usd_mo":   price_usd if period == "mo" else round(price_usd / 12, 2),
+                "pkr_mo":   to_pkr(price_usd) if period == "mo" else to_pkr(price_usd / 12),
+                "pkr_yr":   to_pkr(price_usd * 12) if period == "mo" else to_pkr(price_usd),
             })
 
     if not all_sw_rows:
-        st.info("No tools match your search.")
+        st.info("No software tools match your search. Try a different keyword.")
     else:
-        sw_df = pd.DataFrame(all_sw_rows)
+        # Render grouped by category
+        active_cats = []
+        for cat in SOFTWARE:
+            cat_items = [r for r in all_sw_rows if r["category"] == cat]
+            if cat_items:
+                active_cats.append((cat, cat_items))
 
-        # Show by category
-        for cat in sw_df["Category"].unique():
-            cat_df = sw_df[sw_df["Category"] == cat]
+        for cat, items in active_cats:
             st.markdown(f"#### {cat}")
-            st.dataframe(
-                cat_df[["Tool","USD / mo","PKR / mo","Annual PKR","Note"]],
-                use_container_width=True, hide_index=True,
-            )
+            for item in items:
+                col_name, col_price, col_pkr, col_link = st.columns([3, 1.2, 1.5, 1])
+                with col_name:
+                    st.markdown(
+                        f"**{item['name']}**  \n"
+                        f"<span style='font-size:12px;color:#5a7263'>{item['desc']}</span>",
+                        unsafe_allow_html=True,
+                    )
+                with col_price:
+                    if item["price"] == 0:
+                        st.markdown("🟢 **Free**")
+                    else:
+                        period_label = "/mo" if item["period"] == "mo" else "/yr"
+                        st.markdown(f"**${item['price']:.2f}**{period_label}")
+                with col_pkr:
+                    if item["price"] == 0:
+                        st.markdown("Free")
+                    else:
+                        st.markdown(f"₨ {item['pkr_mo']:,}/mo")
+                        st.caption(f"₨ {item['pkr_yr']:,}/yr")
+                with col_link:
+                    st.link_button("Visit ↗", item["url"], use_container_width=True)
+            st.markdown("<hr style='margin:6px 0;border-color:#f0f0f0'>", unsafe_allow_html=True)
 
         st.divider()
 
-        # Top 10 most expensive chart
-        top10 = sw_df[sw_df["_usd"] > 0].nlargest(10, "_usd")
-        if not top10.empty:
-            st.subheader("Top 10 most expensive subscriptions (monthly)")
+        # ── Top 10 most expensive chart ───────────────────────────────────
+        paid_rows = [r for r in all_sw_rows if r["price"] > 0]
+        if paid_rows:
+            top10_df = pd.DataFrame(paid_rows).nlargest(10, "usd_mo")
+            st.subheader("Top 10 most expensive subscriptions (monthly USD)")
             fig_sw = px.bar(
-                top10.sort_values("_usd"),
-                x="_usd", y="Tool", orientation="h",
-                color="_usd",
+                top10_df.sort_values("usd_mo"),
+                x="usd_mo", y="name", orientation="h",
+                color="usd_mo",
                 color_continuous_scale=[[0,"#e8f5ee"],[1,"#01411C"]],
-                text=top10.sort_values("_usd")["PKR / mo"],
-                labels={"_usd":"USD / month","Tool":""},
+                text=top10_df.sort_values("usd_mo")["pkr_mo"].apply(lambda x: f"₨ {x:,}"),
+                labels={"usd_mo":"USD / month","name":""},
             )
+            fig_sw.update_traces(textposition="outside")
             fig_sw.update_layout(
                 paper_bgcolor="white", plot_bgcolor="white",
                 margin=dict(l=0,r=0,t=10,b=0),
                 coloraxis_showscale=False,
                 xaxis=dict(title="USD / month",gridcolor="#f0f0f0"),
                 yaxis=dict(showgrid=False),
+                height=380,
             )
             st.plotly_chart(fig_sw, use_container_width=True)
 
-        # Monthly budget calculator
+        # ── Budget calculator ─────────────────────────────────────────────
         st.divider()
         st.subheader("Budget Calculator")
         st.caption("Pick the tools you use and see your total monthly software cost in PKR.")
 
-        all_paid = sw_df[sw_df["_usd"] > 0][["Tool","_usd"]].values.tolist()
+        paid_names = [(r["name"], r["usd_mo"]) for r in all_sw_rows if r["price"] > 0]
         selected_tools = st.multiselect(
             "My subscriptions",
-            options=[t for t,_ in all_paid],
+            options=[n for n, _ in paid_names],
             default=[],
         )
         if selected_tools:
-            price_map = {t:p for t,p in all_paid}
-            total_usd = sum(price_map.get(t,0) for t in selected_tools)
+            price_map = {n: p for n, p in paid_names}
+            total_usd = sum(price_map.get(t, 0) for t in selected_tools)
             total_pkr = to_pkr(total_usd)
             bc1, bc2, bc3 = st.columns(3)
             bc1.metric("Monthly USD", f"${total_usd:,.2f}")
@@ -265,28 +296,29 @@ with tab_sw:
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# TAB 2 — HARDWARE
+# TAB 2 — HARDWARE (with search + Amazon search links)
 # ─────────────────────────────────────────────────────────────────────────
 with tab_hw:
     hw_search = st.text_input(
-        "Search hardware", placeholder="e.g. MacBook, monitor, mic…",
+        "Search hardware", placeholder="🔍  e.g. MacBook, monitor, mic, UPS…",
         label_visibility="collapsed", key="hw_search"
     )
+    hw_lower = hw_search.strip().lower()
 
     all_hw_rows = []
     for category, items in HARDWARE.items():
-        for name, price_usd, desc in items:
-            if hw_search and hw_search.lower() not in name.lower() \
-                         and hw_search.lower() not in desc.lower() \
-                         and hw_search.lower() not in category.lower():
+        for name, price_usd, desc, query in items:
+            if hw_lower and hw_lower not in name.lower() \
+                        and hw_lower not in desc.lower() \
+                        and hw_lower not in category.lower():
                 continue
             all_hw_rows.append({
                 "Category": category,
-                "Item":     name,
-                "USD":      f"${price_usd:,}",
-                "PKR":      f"₨ {to_pkr(price_usd):,}",
-                "Note":     desc,
-                "_usd":     price_usd,
+                "name":     name,
+                "usd":      price_usd,
+                "pkr":      to_pkr(price_usd),
+                "desc":     desc,
+                "query":    query,
             })
 
     if not all_hw_rows:
@@ -297,21 +329,33 @@ with tab_hw:
         for cat in hw_df["Category"].unique():
             cat_df = hw_df[hw_df["Category"] == cat]
             st.markdown(f"#### {cat}")
-            st.dataframe(
-                cat_df[["Item","USD","PKR","Note"]],
-                use_container_width=True, hide_index=True,
-            )
+            for _, row in cat_df.iterrows():
+                h1, h2, h3, h4 = st.columns([3, 1, 1.5, 1])
+                with h1:
+                    st.markdown(
+                        f"**{row['name']}**  \n"
+                        f"<span style='font-size:12px;color:#5a7263'>{row['desc']}</span>",
+                        unsafe_allow_html=True,
+                    )
+                with h2:
+                    st.markdown(f"**${row['usd']:,}**")
+                with h3:
+                    st.markdown(f"₨ {row['pkr']:,}")
+                with h4:
+                    amazon_url = f"https://www.amazon.com/s?k={row['query']}"
+                    st.link_button("Find ↗", amazon_url, use_container_width=True)
+            st.markdown("<hr style='margin:6px 0;border-color:#f0f0f0'>", unsafe_allow_html=True)
 
         st.divider()
 
-        # All hardware scatter — USD price vs PKR
+        # All hardware scatter
         st.subheader("Hardware price overview")
         fig_hw = px.scatter(
-            hw_df, x="_usd", y="Category",
-            size="_usd", color="Category",
-            hover_name="Item",
-            hover_data={"PKR": True, "_usd": False, "Category": False},
-            labels={"_usd":"USD price","Category":""},
+            hw_df, x="usd", y="Category",
+            size="usd", color="Category",
+            hover_name="name",
+            hover_data={"pkr": True, "usd": False, "Category": False},
+            labels={"usd":"USD price","Category":""},
             color_discrete_sequence=px.colors.qualitative.Dark24,
         )
         fig_hw.update_layout(
@@ -324,7 +368,6 @@ with tab_hw:
         )
         st.plotly_chart(fig_hw, use_container_width=True)
 
-        # ── UPS callout — very relevant for Pakistan ──────────────────────
         st.info(
             "🇵🇰 **Pakistan-specific tip** — A quality UPS (Uninterruptible Power Supply) "
             "is arguably the most important hardware purchase for a Pakistani freelancer. "
@@ -333,7 +376,7 @@ with tab_hw:
             "It's a business expense and tax-deductible."
         )
 
-        # ── Currency converter for single item ────────────────────────────
+        # Single item converter
         st.divider()
         st.subheader("Single Item Converter")
         sc1, sc2 = st.columns(2)
@@ -345,13 +388,13 @@ with tab_hw:
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# TAB 3 — AI PRICE SEARCH
+# TAB 3 — AI PRICE SEARCH (STRATOS)
 # ─────────────────────────────────────────────────────────────────────────
 with tab_search:
-    st.subheader("AI Price Search")
+    st.subheader("🧠 AI Price Search — Ask STRATOS")
     st.caption(
-        "Ask STRATOS about any software or hardware price, Pakistani availability, "
-        "alternatives, or buying advice. Powered by Groq (free tier)."
+        "Ask about any software or hardware price, Pakistani availability, "
+        "alternatives, or buying advice. Powered by Groq."
     )
 
     if "price_search_history" not in st.session_state:
@@ -367,20 +410,17 @@ with tab_search:
         "How to buy MacBook from Pakistan?",
     ]
     for col, chip in zip(chip_cols, chips):
-        if col.button(chip, use_container_width=True, key=f"chip_{chip[:10]}"):
+        if col.button(chip, use_container_width=True, key=f"chip_{chip[:12]}"):
             st.session_state.price_search_history.append({"role":"user","content":chip})
 
-    # Chat input
     user_q = st.chat_input("e.g. How much does Figma cost in PKR? Any cheaper alternatives?")
     if user_q:
         st.session_state.price_search_history.append({"role":"user","content":user_q})
 
-    # Display history
     for msg in st.session_state.price_search_history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Generate response if last message is from user
     if (st.session_state.price_search_history and
             st.session_state.price_search_history[-1]["role"] == "user"):
 
@@ -393,18 +433,36 @@ with tab_search:
                     placeholder.error("GROQ_API_KEY not set in Streamlit secrets.")
                 else:
                     client = Groq(api_key=groq_key)
+
+                    # Build software/hardware context summary for STRATOS
+                    sw_summary = []
+                    for cat, items in SOFTWARE.items():
+                        for name, price, period, desc, url in items:
+                            sw_summary.append(f"{name}: ${price}/{period} (₨ {to_pkr(price):,}/{'mo' if period=='mo' else 'yr'}) — {desc}")
+                    hw_summary = []
+                    for cat, items in HARDWARE.items():
+                        for name, price, desc, _ in items:
+                            hw_summary.append(f"{name}: ${price:,} (₨ {to_pkr(price):,}) — {desc}")
+
                     system = f"""You are STRATOS, the AI engine of IDMI — a Pakistani freelancer intelligence platform.
 
 Current live data:
 - USD/PKR rate: {USD_PKR:.2f}
 
-When asked about prices:
-1. Give the USD price first
-2. Convert to PKR using the live rate above
+KNOWN SOFTWARE PRICES (use these for accurate PKR conversion):
+{chr(10).join(sw_summary[:40])}
+
+KNOWN HARDWARE PRICES:
+{chr(10).join(hw_summary[:30])}
+
+When answering:
+1. Check the known prices above first and use those USD values
+2. Convert to PKR using the live rate ₨ {USD_PKR:.0f}/USD
 3. Note if the product is available in Pakistan via official channels
-4. Always suggest 1-2 free or cheaper alternatives when relevant
+4. Suggest 1–2 free or cheaper alternatives when relevant
 5. Be specific and practical. No fluff.
-6. If asking about hardware, mention whether it's available in local Pakistani markets (Hafeez Centre, Liberty Market etc.) or only importable."""
+6. For hardware, mention whether it's available at Hafeez Centre, Liberty Market, or import-only.
+7. Always include the official website link if you know it."""
 
                     messages_api = [{"role":"system","content":system}] + \
                                    st.session_state.price_search_history
@@ -414,7 +472,7 @@ When asked about prices:
                         model="llama-3.3-70b-versatile",
                         messages=messages_api,
                         temperature=0.3,
-                        max_tokens=600,
+                        max_tokens=700,
                         stream=True,
                     )
                     for chunk in stream:
@@ -436,7 +494,6 @@ When asked about prices:
 
     st.divider()
     st.caption(
-        "Prices in the Software and Hardware tabs are maintained manually and "
-        "converted using the live USD/PKR rate from your IDMI pipeline. "
-        "AI search responses use Groq Llama 3.3 70B with current rate context."
+        f"Software and hardware prices are maintained manually and converted using the live USD/PKR rate "
+        f"(₨ {USD_PKR:,.1f}) from your IDMI pipeline. AI search uses Groq Llama 3.3 70B."
     )
