@@ -68,11 +68,7 @@ r4.metric("Purchasing Power Index", latest.get("purchasing_power_index","—"),
 
 st.divider()
 
-# ── STRATOS briefing ──────────────────────────────────────────────────────
-st.subheader("🧠 STRATOS — AI Market Briefing")
-st.info(latest.get("ai_sentiment", "Generating… run the pipeline to populate."))
 
-st.divider()
 
 # ── Two charts ────────────────────────────────────────────────────────────
 col_l, col_r = st.columns(2, gap="large")
