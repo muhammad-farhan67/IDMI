@@ -137,5 +137,4 @@ for col,(icon,name,desc) in zip(cols,nav):
 st.caption(
     f"Last snapshot: {str(latest.get('timestamp',''))[:16]} UTC  ·  "
     "Ingested via GitHub Actions  ·  Stored in Supabase  ·  "
-    "100% free-tier infrastructure."
 )
