@@ -37,7 +37,7 @@ A Python pipeline runs automatically via **GitHub Actions every 12 hours**, pull
 - **Exchange rates** — USD, EUR, GBP, SAR, AED, USDT, BTC vs PKR from open APIs
 - **Live remote jobs** — Full job listings from RemoteOK (title, company, salary, skills, apply link) with skill demand analytics
 - **Tech prices** — Curated software subscriptions and hardware prices, auto-converted to PKR at the live exchange rate
-- **News headlines** — RSS feeds from ProPakistani, Profit Pakistan, Hacker News, TechCrunch, The Verge, and Ars Technica
+
 
 All data is stored in **Supabase (PostgreSQL)** and the Streamlit app reads from it with a 10-minute cache.
 """)
@@ -83,15 +83,14 @@ The AI Price Search tab on the Tech Prices page lets you ask STRATOS about any s
 | Layer | Technology |
 |-------|-----------|
 | **Pipeline** | Python 3.11, GitHub Actions (every 12h) |
-| **Database** | Supabase (PostgreSQL, free tier) |
+| **Database** | Supabase (PostgreSQL) |
 | **Frontend** | Streamlit multi-page app |
 | **Charts** | Plotly Express |
-| **AI Engine** | Groq API — Llama 3.3 70B (text), Llama 3.2 11B Vision (images) |
-| **Exchange Rates** | open.er-api.com (free tier) |
-| **Crypto Prices** | CoinGecko API (free tier) |
+| **AI Engine** | Llama 3.3 70B , Llama 3.2 11B Vision |
+| **Exchange Rates** | open.er-api.com |
+| **Crypto Prices** | CoinGecko API |
 | **Job Data** | RemoteOK public API |
-| **News** | RSS feeds via feedparser |
-| **Hosting** | Streamlit Community Cloud (free) |
+| **Hosting** | Streamlit Community Cloud |
 
 ## Disclaimer
 
