@@ -109,45 +109,6 @@ if raw_briefing:
 else:
         st.info("🧠 No briefing yet — run the pipeline to populate.")
 
-# ── Two charts ────────────────────────────────────────────────────────────
-col_l, col_r = st.columns(2, gap="large")
-
-with col_l:
-    st.subheader("USD / PKR — Trend")
-    fig = px.line(
-        df.tail(30), x="timestamp", y="usd_pkr_rate",
-        markers=True, line_shape="spline",
-        color_discrete_sequence=["#1a7a3c"],
-        labels={"usd_pkr_rate":"PKR per USD","timestamp":""},
-    )
-    fig.update_layout(
-        margin=dict(l=0,r=0,t=10,b=0),
-        paper_bgcolor="white", plot_bgcolor="white",
-        xaxis=dict(showgrid=False),
-        yaxis=dict(gridcolor="#f0f0f0"),
-        hovermode="x unified",
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-with col_r:
-    st.subheader("Remote Job Volume")
-    if "job_volume" in df.columns:
-        fig2 = px.area(
-            df.tail(30), x="timestamp", y="job_volume",
-            color_discrete_sequence=["#C9A84C"],
-            labels={"job_volume":"Listings","timestamp":""},
-        )
-        fig2.update_traces(fill="tozeroy", fillcolor="rgba(201,168,76,0.12)")
-        fig2.update_layout(
-            margin=dict(l=0,r=0,t=10,b=0),
-            paper_bgcolor="white", plot_bgcolor="white",
-            xaxis=dict(showgrid=False),
-            yaxis=dict(gridcolor="#f0f0f0"),
-            hovermode="x unified",
-        )
-        st.plotly_chart(fig2, use_container_width=True)
-
-st.divider()
 
 # ── Quick navigation cards ─────────────────────────────────────────────────
 st.subheader("Explore IDMI")
