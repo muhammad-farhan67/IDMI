@@ -1,8 +1,3 @@
-"""
-pages/About.py — Project overview, STRATOS engine details, pipeline status.
-v3.0: Updated with full platform description, STRATOS engine briefing explanation,
-      detailed tech stack, and pipeline health monitor.
-"""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -17,7 +12,9 @@ inject_css()
 st.title("About IDMI")
 st.caption("Indus Digital Market Intelligence — Pakistan's freelancer intelligence platform")
 
+col1, col2 = st.columns([3, 2], gap="large")
 
+with col1:
     st.markdown("""
 ## What is IDMI?
 
@@ -83,20 +80,14 @@ The AI Price Search tab on the Tech Prices page lets you ask STRATOS about any s
 | Layer | Technology |
 |-------|-----------|
 | **Pipeline** | Python 3.11, GitHub Actions (every 12h) |
-| **Database** | Supabase (PostgreSQL, free tier) |
+| **Database** | Supabase (PostgreSQL) |
 | **Frontend** | Streamlit multi-page app |
 | **Charts** | Plotly Express |
-| **AI Engine** | Groq API — Llama 3.3 70B (text), Llama 3.2 11B Vision (images) |
-| **Exchange Rates** | open.er-api.com (free tier) |
-| **Crypto Prices** | CoinGecko API (free tier) |
+| **AI Engine** | Llama 3.3 70B, Llama 3.2 11B Vision |
+| **Exchange Rates** | open.er-api.com |
+| **Crypto Prices** | CoinGecko API |
 | **Job Data** | RemoteOK public API |
 | **News** | RSS feeds via feedparser |
-| **Hosting** | Streamlit Community Cloud (free) |
-
-## Disclaimer
-
-IDMI is for informational purposes only. Nothing on this platform constitutes financial advice. Exchange rates and market data are provided as-is and may be delayed. Always verify rates before making financial decisions.
-""")
+| **Hosting** | Streamlit Community Cloud |
 
 
-        
