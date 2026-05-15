@@ -176,29 +176,11 @@ def fetch_jobs_and_skills():
     }
 
 
-# ---------------------------------------------------------------------------
-
-TECH_KEYWORDS = [
-    "software", "app", "tech", "ai", "startup", "digital", "code", "python",
-    "developer", "freelance", "remote", "crypto", "bitcoin", "cyber", "cloud",
-    "data", "android", "ios", "internet", "online", "platform", "api", "open source",
-    "dollar", "pkr", "rupee", "economy", "market", "investment", "fiverr", "upwork",
-    "github", "tool", "launch", "product", "funding", "acquisition", "llm", "gpt",
-]
-
-
-def is_tech_relevant(title: str) -> bool:
-    title_lower = title.lower()
-    return any(kw in title_lower for kw in TECH_KEYWORDS)
-
-
-
-
 
 # ---------------------------------------------------------------------------
-# 7. AI BRIEFING — STRATOS with richer context (job titles)
+# 7. AI BRIEFING — STRATOS with richer context (news + job titles)
 # ---------------------------------------------------------------------------
-def generate_ai_insight(rates, jobs, top_skills_raw):
+def generate_ai_insight(rates, jobs, top_skills_raw, news_raw):
     print("  Generating STRATOS AI market insight via Groq...")
 
     top_skills_list = "unavailable"
@@ -213,7 +195,13 @@ def generate_ai_insight(rates, jobs, top_skills_raw):
         titles = [j["title"] for j in all_jobs[:8] if j.get("title")]
         job_titles_sample = " | ".join(titles) if titles else "unavailable"
 
-  
+    # Latest news headlines for context
+    news_context = "unavailable"
+    if news_raw:
+        parsed_news = json.loads(news_raw)
+        headlines = [f"[{n['source']}] {n['title']}" for n in parsed_news[:6]]
+        news_context = "\n".join(headlines) if headlines else "unavailable"
+
     prompt = f"""
 You are STRATOS, the AI engine of IDMI (Indus Digital Market Intelligence) — Pakistan's freelancer intelligence platform.
 
@@ -234,7 +222,7 @@ Currency Outlook: [Is now a good time for Pakistani freelancers to invoice in US
 
 Job Market: [Which specific skills/roles are seeing the most live demand right now, and what does that mean for a Pakistani freelancer's earnings this week?]
 
-Action Item: [One concrete, actionable recommendation based on ALL the above data — rates, jobs.]
+Action Item: [One concrete, actionable recommendation based on ALL the above data — rates, jobs, AND a relevant news item if applicable.]
 
 Be specific, data-driven, and directly relevant to Pakistan's freelance economy. No fluff.
 """
@@ -283,9 +271,10 @@ def run_ingestion_pipeline():
 
     crypto = fetch_crypto_rates()
     jobs   = fetch_jobs_and_skills()
+    news   = fetch_news_headlines()
     rates.update(crypto)
 
-    ai_insight = generate_ai_insight(rates, jobs, jobs["top_skills"])
+    ai_insight = generate_ai_insight(rates, jobs, jobs["top_skills"], news)
 
     payload = {
         "timestamp":              now.isoformat(),
@@ -300,6 +289,7 @@ def run_ingestion_pipeline():
         "job_volume":             jobs["job_volume"],
         "top_skills":             jobs["top_skills"],
         "jobs_data":              jobs["jobs_data"],   # NEW — full job details
+        "news_headlines":         news,
         "ai_sentiment":           ai_insight,
     }
 
@@ -309,7 +299,7 @@ def run_ingestion_pipeline():
         print(f"\n  ✓ Pipeline complete. {len(payload)} fields stored.")
         print(f"  USD/PKR: {rates['usd_pkr']} | "
               f"Jobs: {jobs['job_volume']} | "
-              )
+              f"Headlines: {len(json.loads(news))}")
     except Exception as e:
         print(f"  [FATAL] Supabase insert failed: {e}")
         raise
