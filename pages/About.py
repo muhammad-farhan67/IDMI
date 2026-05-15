@@ -44,6 +44,18 @@ An AI engine called **STRATOS** analyses the freshest snapshot and produces
 a concise 3-sentence briefing tailored to Pakistani freelancers — covering
 currency outlook, job market trends, and one actionable recommendation.
 
+# STRATOS Chat – Features
+
+- **Session Memory:** Stores full chat history so STRATOS remembers the conversation. Clear Chat resets it.
+
+- **Voice Input:** Uses the browser’s Web Speech API (free, no extra packages). Mic button converts speech to text. Best supported on Chrome & Edge.
+
+- **File Upload:** Supports `.txt`, `.py`, `.md`, `.csv`, `.json`, and `.pdf`. File content is added as context before sending messages.
+
+- **Image Upload:** Supports `.png`, `.jpg`, `.jpeg`, `.webp`. Images are sent to `llama-3.2-11b-vision-preview` for analysis, OCR, chart reading, and review.
+
+- **Market Context:** Injects live Supabase data into prompts for real-time responses.
+
 ## Tech Stack
 
 - **Pipeline**: Python, running on GitHub Actions (every 12 hours)
