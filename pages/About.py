@@ -17,9 +17,7 @@ inject_css()
 st.title("About IDMI")
 st.caption("Indus Digital Market Intelligence — Pakistan's freelancer intelligence platform")
 
-col1, col2 = st.columns([3, 2], gap="large")
 
-with col1:
     st.markdown("""
 ## What is IDMI?
 
