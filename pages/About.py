@@ -1,3 +1,8 @@
+"""
+pages/About.py — Project overview, STRATOS engine details, pipeline status.
+v3.0: Updated with full platform description, STRATOS engine briefing explanation,
+      detailed tech stack, and pipeline health monitor.
+"""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -80,14 +85,153 @@ The AI Price Search tab on the Tech Prices page lets you ask STRATOS about any s
 | Layer | Technology |
 |-------|-----------|
 | **Pipeline** | Python 3.11, GitHub Actions (every 12h) |
-| **Database** | Supabase (PostgreSQL) |
+| **Database** | Supabase (PostgreSQL, free tier) |
 | **Frontend** | Streamlit multi-page app |
 | **Charts** | Plotly Express |
-| **AI Engine** | Llama 3.3 70B, Llama 3.2 11B Vision |
-| **Exchange Rates** | open.er-api.com |
-| **Crypto Prices** | CoinGecko API |
+| **AI Engine** | Groq API — Llama 3.3 70B (text), Llama 3.2 11B Vision (images) |
+| **Exchange Rates** | open.er-api.com (free tier) |
+| **Crypto Prices** | CoinGecko API (free tier) |
 | **Job Data** | RemoteOK public API |
 | **News** | RSS feeds via feedparser |
-| **Hosting** | Streamlit Community Cloud |
+| **Hosting** | Streamlit Community Cloud (free) |
 
+## Disclaimer
 
+IDMI is for informational purposes only. Nothing on this platform constitutes financial advice. Exchange rates and market data are provided as-is and may be delayed. Always verify rates before making financial decisions.
+""")
+
+with col2:
+    st.subheader("Pipeline Status")
+
+    df = load_data()
+    if not df.empty:
+        latest    = get_latest(df)
+        latest_ts = df.iloc[-1]["timestamp"]
+        row_count = len(df)
+        oldest_ts = df.iloc[0]["timestamp"]
+
+        st.metric("Total snapshots",    f"{row_count:,}")
+        st.metric("Latest snapshot",    str(latest_ts)[:16])
+        st.metric("Tracking since",     str(oldest_ts)[:10])
+        st.metric("Remote jobs tracked",
+                  f"{int(latest.get('job_volume', 0)):,}" if latest.get("job_volume") else "—")
+
+        # Jobs detail availability
+        jobs_data = parse_json_col(latest, "jobs_data")
+        if jobs_data:
+            st.success(f"✓ {len(jobs_data)} detailed job records available")
+        else:
+            st.warning("⚠ Run v3.0 harvester to collect detailed job records")
+
+        # Pipeline health
+        try:
+            now = pd.Timestamp.now(tz="UTC")
+            ts  = pd.Timestamp(latest_ts)
+            if ts.tzinfo is None:
+                ts = ts.tz_localize("UTC")
+            else:
+                ts = ts.tz_convert("UTC")
+            age         = now - ts
+            minutes_old = int(age.total_seconds() / 60)
+
+            if minutes_old < 75:
+                st.success(f"✓ Pipeline healthy — last run {minutes_old}m ago")
+            elif minutes_old < 180:
+                st.warning(f"⚠ Last run was {minutes_old}m ago — pipeline may be delayed")
+            else:
+                hours_old = minutes_old // 60
+                st.error(f"✗ Last run was {hours_old}h ago — check GitHub Actions logs")
+        except Exception:
+            st.info(f"Latest snapshot: {str(latest_ts)[:16]} UTC")
+
+        st.divider()
+
+        # Current rates snapshot
+        st.subheader("Current Rates")
+        r1, r2 = st.columns(2)
+        r1.metric("USD/PKR", f"₨ {latest.get('usd_pkr_rate','—')}")
+        r2.metric("EUR/PKR", f"₨ {latest.get('eur_pkr_rate','—')}")
+        r3, r4 = st.columns(2)
+        r3.metric("GBP/PKR", f"₨ {latest.get('gbp_pkr_rate','—')}")
+        r4.metric("BTC/USD",
+                  f"${int(latest.get('btc_usd_rate',0)):,}" if latest.get("btc_usd_rate") else "—")
+
+        st.divider()
+
+        # Top skills
+        skills = parse_json_col(latest, "top_skills")
+        if skills:
+            st.subheader("Top In-Demand Skills")
+            for s in skills[:5]:
+                bar_pct = min(100, int(s["count"] / max(sk["count"] for sk in skills) * 100))
+                st.markdown(
+                    f'<div style="margin-bottom:4px">'
+                    f'<span style="font-size:13px;font-weight:600;color:#0d1f15">{s["skill"]}</span>'
+                    f'<span style="font-size:12px;color:#5a7263;float:right">{s["count"]} listings</span>'
+                    f'</div>'
+                    f'<div style="background:#e8f5ee;border-radius:4px;height:6px;margin-bottom:8px;">'
+                    f'<div style="background:#01411C;width:{bar_pct}%;height:6px;border-radius:4px;"></div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+        st.divider()
+
+        # USD/PKR sparkline
+        if "usd_pkr_rate" in df.columns:
+            import plotly.express as px
+            spark_df = df.tail(20).dropna(subset=["usd_pkr_rate"])
+            if not spark_df.empty:
+                fig = px.line(
+                    spark_df, x="timestamp", y="usd_pkr_rate",
+                    line_shape="spline",
+                    color_discrete_sequence=["#1a7a3c"],
+                    labels={"usd_pkr_rate":"USD/PKR","timestamp":""},
+                )
+                fig.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=0,r=0,t=10,b=0),
+                    xaxis=dict(showgrid=False,showticklabels=False),
+                    yaxis=dict(gridcolor="rgba(128,128,128,0.15)",tickfont=dict(size=10)),
+                    height=150,
+                )
+                st.caption("USD/PKR — last 20 snapshots")
+                st.plotly_chart(fig, use_container_width=True)
+
+        # Latest STRATOS briefing
+        briefing = latest.get("ai_sentiment","")
+        if briefing:
+            st.divider()
+            st.subheader("🧠 Latest STRATOS Briefing")
+            for line in briefing.split("\n"):
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("Currency Outlook:"):
+                    st.markdown(
+                        f"<div style='background:#f0fdf4;border-left:3px solid #16a34a;"
+                        f"padding:8px 12px;border-radius:5px;margin-bottom:6px;font-size:12px;'>"
+                        f"<strong style='color:#15803d'>💱</strong> "
+                        f"{line.replace('Currency Outlook:','').strip()}</div>",
+                        unsafe_allow_html=True,
+                    )
+                elif line.startswith("Job Market:"):
+                    st.markdown(
+                        f"<div style='background:#fffbeb;border-left:3px solid #d97706;"
+                        f"padding:8px 12px;border-radius:5px;margin-bottom:6px;font-size:12px;'>"
+                        f"<strong style='color:#b45309'>📋</strong> "
+                        f"{line.replace('Job Market:','').strip()}</div>",
+                        unsafe_allow_html=True,
+                    )
+                elif line.startswith("Action Item:"):
+                    st.markdown(
+                        f"<div style='background:#eff6ff;border-left:3px solid #2563eb;"
+                        f"padding:8px 12px;border-radius:5px;margin-bottom:6px;font-size:12px;'>"
+                        f"<strong style='color:#1d4ed8'>⚡</strong> "
+                        f"{line.replace('Action Item:','').strip()}</div>",
+                        unsafe_allow_html=True,
+                    )
+    else:
+        st.warning("No data in database yet.")
+        st.info("Trigger the GitHub Action manually to seed your first snapshot.")
