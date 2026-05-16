@@ -394,7 +394,7 @@ with tab_search:
     st.subheader("🧠 AI Price Search — Ask STRATOS")
     st.caption(
         "Ask about any software or hardware price, Pakistani availability, "
-        "alternatives, or buying advice. Powered by Groq."
+        "alternatives, or buying advice."
     )
 
     if "price_search_history" not in st.session_state:
@@ -404,7 +404,7 @@ with tab_search:
     st.markdown("**Quick searches:**")
     chip_cols = st.columns(4)
     chips = [
-        "Cost of Adobe CC in PKR?",
+        "Cost of Upwork Freelancer Plus in PKR?",
         "Cheapest way to get Microsoft Office?",
         "Best budget monitor for Pakistani devs?",
         "How to buy MacBook from Pakistan?",
