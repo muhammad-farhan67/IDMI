@@ -64,6 +64,34 @@ st.markdown("""
     border-radius: 10px !important;
     margin-bottom: 6px !important;
 }
+
+/* ── Sidebar text visibility on dark green background ── */
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] div,
+[data-testid="stSidebar"] .stMarkdown,
+[data-testid="stSidebar"] .stCaption,
+[data-testid="stSidebar"] small {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: #ffffff !important;
+}
+[data-testid="stSidebar"] .stButton > button {
+    background: rgba(255,255,255,0.1) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: rgba(255,255,255,0.2) !important;
+}
+[data-testid="stSidebar"] hr {
+    border-color: rgba(255,255,255,0.2) !important;
+}
+
 .briefing-card {
     border-radius: 8px;
     padding: 10px 14px;
@@ -312,6 +340,8 @@ with st.sidebar:
     max_tokens  = st.select_slider("Max response length",
                                    options=[300, 500, 800, 1200, 2000],
                                    value=800)
+    st.session_state["_temperature"] = temperature
+    st.session_state["_max_tokens"]  = max_tokens
 
     st.divider()
     st.markdown("### Quick prompts")
@@ -326,6 +356,7 @@ with st.sidebar:
     for qp in quick_prompts:
         if st.button(qp, key=f"qp_{qp[:20]}", use_container_width=True):
             st.session_state.messages.append({"role":"user","content":qp})
+            st.session_state["_quick_prompt_pending"] = True
             st.rerun()
 
 # ── Voice input component ──────────────────────────────────────────────────
@@ -340,13 +371,16 @@ VOICE_COMPONENT = """
         background:#9ca3af;display:inline-block;flex-shrink:0;"></span>
   <span id="transcriptDisplay"
     style="font-size:13px;color:#5a7263;flex:1;font-style:italic;">
-    Click the mic button, speak, then send your message below.
+    Click the mic button, speak — it will auto-send when you finish.
   </span>
 </div>
 
 <script>
-let recognition = null;
-let isListening  = false;
+let recognition    = null;
+let isListening    = false;
+let accumulatedText = '';
+let silenceTimer   = null;
+const SILENCE_MS   = 2200; // stop after 2.2 s of silence
 
 function setStatus(color, text, btnText) {
     document.getElementById('statusDot').style.background = color;
@@ -354,22 +388,33 @@ function setStatus(color, text, btnText) {
     document.getElementById('micBtn').textContent = btnText;
 }
 
-function fillChatInput(text) {
-    // Streamlit chat_input uses a textarea — find it and set its value
+function submitToChat(text) {
+    // Find Streamlit's chat textarea and fill + submit it
     const inputs = parent.document.querySelectorAll('textarea[data-testid="stChatInputTextArea"]');
-    if (inputs.length > 0) {
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-            window.HTMLTextAreaElement.prototype, 'value'
-        ).set;
-        nativeInputValueSetter.call(inputs[0], text);
-        inputs[0].dispatchEvent(new Event('input', {bubbles:true}));
+    if (inputs.length === 0) {
+        setStatus('#ef4444', '✗ Could not find chat input — type manually', '🎤 Hold to Speak');
+        return;
     }
-    setStatus('#22c55e', '✓ Transcribed — press Enter to send', '🎤 Hold to Speak');
-    document.getElementById('transcriptDisplay').textContent = '✓ ' + text;
+    const ta = inputs[0];
+    const nativeSet = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype, 'value'
+    ).set;
+    nativeSet.call(ta, text);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    setStatus('#22c55e', '✓ Sending: ' + text, '🎤 Hold to Speak');
+
+    // Auto-submit via Enter keydown after brief delay
+    setTimeout(() => {
+        ta.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Enter', code: 'Enter', keyCode: 13,
+            which: 13, bubbles: true, cancelable: true
+        }));
+    }, 250);
 }
 
 function toggleVoice() {
     if (isListening && recognition) {
+        clearTimeout(silenceTimer);
         recognition.stop();
         return;
     }
@@ -380,34 +425,46 @@ function toggleVoice() {
         return;
     }
 
+    accumulatedText = '';
     recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
     recognition.interimResults = true;
-    recognition.continuous = false;
+    recognition.continuous = true;      // keep listening until silence timer fires
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
         isListening = true;
-        setStatus('#ef4444', '🔴 Listening… speak now', '⏹ Stop listening');
+        setStatus('#ef4444', '🔴 Listening… speak now (auto-stops after pause)', '⏹ Stop');
         document.getElementById('micBtn').style.background = '#dc2626';
     };
 
     recognition.onresult = (event) => {
-        let interim = '';
-        let final   = '';
+        clearTimeout(silenceTimer);
+
+        let interimText = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const t = event.results[i][0].transcript;
-            if (event.results[i].isFinal) final += t;
-            else interim += t;
+            if (event.results[i].isFinal) {
+                accumulatedText += (accumulatedText ? ' ' : '') + t.trim();
+            } else {
+                interimText += t;
+            }
         }
-        if (final) {
-            fillChatInput(final.trim());
-        } else {
-            document.getElementById('transcriptDisplay').textContent = '…' + interim;
-        }
+
+        // Show live preview
+        const preview = accumulatedText + (interimText ? ' ' + interimText : '');
+        document.getElementById('transcriptDisplay').textContent = '🎙 ' + preview;
+
+        // Restart silence countdown
+        silenceTimer = setTimeout(() => {
+            if (isListening && recognition) {
+                recognition.stop(); // onend will handle submit
+            }
+        }, SILENCE_MS);
     };
 
     recognition.onerror = (e) => {
+        clearTimeout(silenceTimer);
         const msgs = {
             'no-speech':     'No speech detected — try again',
             'audio-capture': 'Microphone not found',
@@ -420,9 +477,14 @@ function toggleVoice() {
     };
 
     recognition.onend = () => {
+        clearTimeout(silenceTimer);
         isListening = false;
         document.getElementById('micBtn').style.background = '#01411C';
-        if (document.getElementById('statusDot').style.background === 'rgb(239, 68, 68)') {
+
+        if (accumulatedText.trim()) {
+            submitToChat(accumulatedText.trim());
+            accumulatedText = '';
+        } else {
             setStatus('#9ca3af', 'No speech heard — try again', '🎤 Hold to Speak');
         }
     };
@@ -458,6 +520,50 @@ for msg in st.session_state.messages:
 
 # ── Chat input & response ─────────────────────────────────────────────────
 user_input = st.chat_input("Ask STRATOS — exchange rates, job listings, tech prices, career advice…")
+
+# Detect quick-prompt trigger: last message is user, no assistant reply yet
+_quick_pending = st.session_state.pop("_quick_prompt_pending", False)
+_needs_response = (
+    _quick_pending and
+    st.session_state.messages and
+    st.session_state.messages[-1]["role"] == "user"
+)
+
+if _needs_response:
+    # Show the user's quick-prompt message then generate a response
+    qp_text = st.session_state.messages[-1]["content"]
+    with st.chat_message("user"):
+        st.markdown(qp_text)
+
+    system_msg = {
+        "role": "system",
+        "content": SYSTEM_PROMPT.format(market_context=get_market_context()),
+    }
+    api_history = [{"role": m["role"], "content": m["content"]}
+                   for m in st.session_state.messages]
+
+    with st.chat_message("assistant"):
+        placeholder   = st.empty()
+        full_response = ""
+        try:
+            stream = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[system_msg] + api_history,
+                temperature=st.session_state.get("_temperature", 0.4),
+                max_tokens=st.session_state.get("_max_tokens", 800),
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content or ""
+                full_response += delta
+                placeholder.markdown(full_response + "▋")
+            placeholder.markdown(full_response)
+        except Exception as e:
+            full_response = f"⚠ STRATOS error: {e}"
+            placeholder.error(full_response)
+
+    st.session_state.messages.append({"role":"assistant","content":full_response})
+    st.rerun()
 
 if user_input:
     pending     = st.session_state.pending_files.copy()
