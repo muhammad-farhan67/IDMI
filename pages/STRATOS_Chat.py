@@ -92,6 +92,30 @@ st.markdown("""
     border-color: rgba(255,255,255,0.2) !important;
 }
 
+/* ── File uploader in dark sidebar ── */
+[data-testid="stSidebar"] [data-testid="stFileUploader"] {
+    background: rgba(255,255,255,0.08) !important;
+    border: 2px dashed rgba(255,255,255,0.35) !important;
+    border-radius: 10px !important;
+}
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+    background: transparent !important;
+}
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] span,
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] small {
+    color: rgba(255,255,255,0.75) !important;
+}
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {
+    background: #ffffff !important;
+    color: #01411C !important;
+    border: none !important;
+    font-weight: 600 !important;
+}
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {
+    background: #e8f5e9 !important;
+    color: #01411C !important;
+}
+
 .briefing-card {
     border-radius: 8px;
     padding: 10px 14px;
@@ -152,11 +176,6 @@ def get_market_context():
             f"  Sample live jobs: {jobs_sample}"
         )
 
-        # ── News ──────────────────────────────────────────────────────────
-        news = parse_json_col(latest, "news_headlines")
-        news_lines = [f"  [{n['source']}] {n['title']}" for n in news[:8]] if news else []
-        news_block = "\n".join(news_lines) if news_lines else "  N/A"
-
         # ── Key software prices in PKR (for quick answers) ────────────────
         try:
             usd = float(usd_pkr) if usd_pkr != "N/A" else 280.0
@@ -181,7 +200,6 @@ def get_market_context():
             f"Last updated: {last_updated} UTC\n\n"
             f"[EXCHANGE RATES]\n{rates_block}\n\n"
             f"[REMOTE JOB MARKET]\n{jobs_block}\n\n"
-            f"[LATEST TECH/BUSINESS NEWS]\n{news_block}\n\n"
             f"[KEY SOFTWARE PRICES IN PKR (at live rate ₨ {usd:.0f}/USD)]\n{prices_block}"
         )
     except Exception as ex:
@@ -191,24 +209,27 @@ def get_market_context():
 # ── STRATOS System Prompt ─────────────────────────────────────────────────
 SYSTEM_PROMPT = """You are STRATOS — the AI engine of IDMI (Indus Digital Market Intelligence), Pakistan's premier freelancer intelligence platform.
 
-You have access to LIVE market data (exchange rates, remote job listings, top skills, news headlines, and tech prices in PKR) injected below. Use this data to give accurate, specific answers.
+You have access to LIVE market data (exchange rates, remote job listings, top skills, and tech prices in PKR) injected below. Use this data to give accurate, specific answers.
 
-Your expertise covers:
+Your expertise covers ONLY the following topics:
 - Exchange rates: USD/PKR, EUR/PKR, GBP/PKR, USDT/PKR, BTC — when to convert and hold
 - Freelance career: Upwork, Fiverr, Toptal, Contra — platform choice, pricing, proposals
 - Skills & job market: which skills are in demand right now, what pays well, what to learn next
 - Tech prices in PKR: software subscriptions, hardware, what's available in Pakistan vs import-only
 - Income & taxes: FBR freelancer tax, Rozan, Payoneer, bank channels for USD receipt
-- General tech & business questions
 
 HOW TO ANSWER:
 - Lead with data from the injected market context when relevant
 - For price questions: always give USD price AND PKR equivalent using the live rate
 - For job questions: reference the actual skill demand data and job titles from context
-- For news: weave relevant headlines into your answer when applicable
 - For hardware: mention Pakistani market availability (Hafeez Centre, Liberty Market, Alfatah, online import)
 - Be direct, specific, and practical. No filler. Use bullet points for lists.
+- Do NOT cite, reference, or mention any news headlines or news sources in any response.
 - If asked what you are or about STRATOS: explain you are the AI engine powering IDMI's market intelligence, chat, and automated briefings.
+
+STRICT SCOPE RULE — CRITICAL:
+If the user asks about anything outside your expertise above (e.g. general coding help, entertainment, recipes, sports, world events, general knowledge, creative writing, or any topic unrelated to the Pakistani digital economy and freelancing), you MUST NOT answer it. Instead respond with exactly this message:
+"I'm STRATOS, the AI engine powering IDMI's market intelligence, chat, and automated briefings. I'm here to provide you with accurate and up-to-date information on the Pakistani digital economy, including exchange rates, freelance career guidance, skills and job market trends, and tech prices in PKR. How can I help you with any of these topics?"
 
 {market_context}"""
 
