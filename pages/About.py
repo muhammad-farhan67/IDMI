@@ -21,7 +21,7 @@ with col1:
     st.markdown("""
 ## What is IDMI?
 
-**Indus Digital Market Intelligence (IDMI)** is a real-time intelligence platform built for Pakistan's digital economy. It tracks exchange rates, live remote job listings, software prices in PKR, and AI-powered market briefings — all on 100% free-tier infrastructure.
+**Indus Digital Market Intelligence (IDMI)** is a real-time intelligence platform built for Pakistan's digital economy. It tracks exchange rates, live remote job listings, software prices in PKR, and AI-powered market briefings.
 
 ## Who is it for?
 
