@@ -78,22 +78,5 @@ The AI Price Search tab on the Tech Prices page lets you ask STRATOS about any s
 - **Voice Input** — Browser-native speech-to-text in STRATOS Chat (Chrome/Edge)
 - **File & Image Analysis** — Upload PDFs, code files, CSV, or images for STRATOS to analyse
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Pipeline** | Python 3.11, GitHub Actions (every 12h) |
-| **Database** | Supabase (PostgreSQL) |
-| **Frontend** | Streamlit multi-page app |
-| **Charts** | Plotly Express |
-| **AI Engine** | Llama 3.3 70B , Llama 3.2 11B Vision |
-| **Exchange Rates** | open.er-api.com |
-| **Crypto Prices** | CoinGecko API |
-| **Job Data** | RemoteOK public API |
-| **Hosting** | Streamlit Community Cloud |
-
-## Disclaimer
-
-IDMI is for informational purposes only. Nothing on this platform constitutes financial advice. Exchange rates and market data are provided as-is and may be delayed. Always verify rates before making financial decisions.
 """)
 
