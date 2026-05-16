@@ -2,7 +2,7 @@
 pages/STRATOS_Chat.py — IDMI AI Assistant v3.0
 
 Changes:
-  - get_market_context() now includes news headlines, live job listings
+  - get_market_context() now includes live job listings
     sample, and tech prices context so STRATOS answers more accurately.
   - SYSTEM_PROMPT refined: clearer role, better guidance for price/job queries.
   - STRATOS briefing from DB shown as structured cards at the top.
